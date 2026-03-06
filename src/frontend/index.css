@@ -70,14 +70,14 @@
     --chart-4: 0.55 0.20 290;
     --chart-5: 0.68 0.14 150;
 
-    /* Sidebar: deep dark slate with pink accent */
-    --sidebar: 0.16 0.02 285;
-    --sidebar-foreground: 0.97 0 0;
+    /* Sidebar: pure black with white text */
+    --sidebar: 0 0 0;
+    --sidebar-foreground: 1 0 0;
     --sidebar-primary: 0.58 0.26 345;
     --sidebar-primary-foreground: 1 0 0;
-    --sidebar-accent: 0.28 0.04 285;
+    --sidebar-accent: 0.18 0 0;
     --sidebar-accent-foreground: 1 0 0;
-    --sidebar-border: 0.28 0.025 285;
+    --sidebar-border: 0.22 0 0;
     --sidebar-ring: 0.58 0.26 345;
   }
 

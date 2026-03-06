@@ -77,9 +77,12 @@ export function AppLayout({
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Sidebar */}
-      <aside className="w-56 flex-shrink-0 flex flex-col bg-sidebar border-r border-sidebar-border">
+      <aside
+        className="w-56 flex-shrink-0 flex flex-col border-r border-sidebar-border"
+        style={{ backgroundColor: "#000000" }}
+      >
         {/* Brand */}
-        <div className="px-5 py-6 border-b border-sidebar-border">
+        <div className="px-5 py-6 border-b" style={{ borderColor: "#222" }}>
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-sidebar-primary flex items-center justify-center flex-shrink-0">
               <Scissors size={18} className="text-sidebar-primary-foreground" />
@@ -107,15 +110,14 @@ export function AppLayout({
                 onClick={() => navigate(item.to)}
                 className={cn(
                   "w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors font-body",
-                  isActive
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground/90 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                  isActive ? "text-white" : "text-white/80 hover:text-white",
                 )}
+                style={isActive ? { backgroundColor: "#1a1a1a" } : undefined}
               >
                 <span
                   className={cn(
-                    "flex-shrink-0",
-                    isActive ? "text-sidebar-primary" : "opacity-80",
+                    "flex-shrink-0 text-white",
+                    isActive ? "opacity-100" : "opacity-70",
                   )}
                 >
                   {item.icon}
@@ -127,7 +129,7 @@ export function AppLayout({
         </nav>
 
         {/* Footer */}
-        <div className="px-4 py-4 border-t border-sidebar-border">
+        <div className="px-4 py-4 border-t" style={{ borderColor: "#222" }}>
           <p className="text-xs text-sidebar-foreground/40 text-center font-body">
             © {new Date().getFullYear()}{" "}
             <a
