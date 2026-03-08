@@ -39,6 +39,7 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
+  Download,
   Pencil,
   Plus,
   Search,
@@ -73,6 +74,51 @@ const EMPTY_FORM: ProductFormData = {
   lowStockThreshold: "",
   currentStock: "",
 };
+
+function exportProductsToExcel(
+  data: {
+    id: number;
+    name: string;
+    categoryName: string;
+    brand: string;
+    openingStock: number;
+    currentStock: number;
+    unit: string;
+    lowStockThreshold: number;
+  }[],
+  filename: string,
+) {
+  const header = [
+    "ID",
+    "Name",
+    "Category",
+    "Brand",
+    "Opening Stock",
+    "Current Stock",
+    "Unit",
+    "Low Stock Threshold",
+  ];
+  const rows = data.map((p) => [
+    p.id,
+    p.name,
+    p.categoryName,
+    p.brand,
+    p.openingStock,
+    p.currentStock,
+    p.unit,
+    p.lowStockThreshold,
+  ]);
+  const csvContent = [header, ...rows]
+    .map((row) => row.map((cell) => `"${cell}"`).join(","))
+    .join("\n");
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export function Products() {
   const { data: products = [], isLoading } = useProducts();
@@ -250,6 +296,27 @@ export function Products() {
             ))}
           </SelectContent>
         </Select>
+        <Button
+          data-ocid="products.download_button"
+          variant="outline"
+          onClick={() => {
+            const today = new Date().toISOString().slice(0, 10);
+            const exportData = filtered.map((p) => ({
+              id: p.id,
+              name: p.name,
+              categoryName: categoryMap[p.categoryId] ?? "",
+              brand: p.brand,
+              openingStock: p.openingStock,
+              currentStock: p.currentStock,
+              unit: p.unit,
+              lowStockThreshold: p.lowStockThreshold,
+            }));
+            exportProductsToExcel(exportData, `products_${today}.csv`);
+          }}
+        >
+          <Download size={15} className="mr-1.5" />
+          Download Excel
+        </Button>
         <Button
           data-ocid="products.add_button"
           onClick={openAdd}

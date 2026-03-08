@@ -89,6 +89,20 @@ export class ExternalBlob {
         return this;
     }
 }
+export interface UsageRecord {
+    id: bigint;
+    categoryId: bigint;
+    staffId: bigint;
+    clientName: string;
+    date: string;
+    time: string;
+    productId: bigint;
+    quantity: bigint;
+}
+export interface Category {
+    id: bigint;
+    name: string;
+}
 export interface Product {
     id: bigint;
     categoryId: bigint;
@@ -99,19 +113,32 @@ export interface Product {
     currentStock: bigint;
     openingStock: bigint;
 }
-export interface Category {
+export interface Staff {
     id: bigint;
     name: string;
+    role: string;
 }
 export interface backendInterface {
     addCategory(name: string): Promise<Category>;
     addProduct(name: string, categoryId: bigint, openingStock: bigint, unit: string, lowStockThreshold: bigint): Promise<Product>;
+    addStaff(name: string, role: string): Promise<Staff>;
+    addUsageRecord(date: string, productId: bigint, categoryId: bigint, staffId: bigint, quantity: bigint, time: string, clientName: string): Promise<UsageRecord>;
     deleteCategory(id: bigint): Promise<boolean>;
+    deleteProduct(id: bigint): Promise<boolean>;
+    deleteStaff(id: bigint): Promise<boolean>;
     getCategories(): Promise<Array<Category>>;
     getProductById(id: bigint): Promise<Product | null>;
     getProducts(): Promise<Array<Product>>;
+    getStaff(): Promise<Array<Staff>>;
+    getUsageRecords(): Promise<Array<UsageRecord>>;
+    getUsageStats(): Promise<{
+        totalUsageAllTime: bigint;
+        totalUsageToday: bigint;
+    }>;
+    updateProduct(id: bigint, name: string, categoryId: bigint, currentStock: bigint, unit: string, lowStockThreshold: bigint): Promise<Product | null>;
+    updateStaff(id: bigint, name: string, role: string): Promise<Staff | null>;
 }
-import type { Product as _Product } from "./declarations/backend.did.d.ts";
+import type { Product as _Product, Staff as _Staff } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
     async addCategory(arg0: string): Promise<Category> {
@@ -142,6 +169,34 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async addStaff(arg0: string, arg1: string): Promise<Staff> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addStaff(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addStaff(arg0, arg1);
+            return result;
+        }
+    }
+    async addUsageRecord(arg0: string, arg1: bigint, arg2: bigint, arg3: bigint, arg4: bigint, arg5: string, arg6: string): Promise<UsageRecord> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addUsageRecord(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addUsageRecord(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+            return result;
+        }
+    }
     async deleteCategory(arg0: bigint): Promise<boolean> {
         if (this.processError) {
             try {
@@ -153,6 +208,34 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.deleteCategory(arg0);
+            return result;
+        }
+    }
+    async deleteProduct(arg0: bigint): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteProduct(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteProduct(arg0);
+            return result;
+        }
+    }
+    async deleteStaff(arg0: bigint): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteStaff(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteStaff(arg0);
             return result;
         }
     }
@@ -198,8 +281,84 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async getStaff(): Promise<Array<Staff>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getStaff();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getStaff();
+            return result;
+        }
+    }
+    async getUsageRecords(): Promise<Array<UsageRecord>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getUsageRecords();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getUsageRecords();
+            return result;
+        }
+    }
+    async getUsageStats(): Promise<{
+        totalUsageAllTime: bigint;
+        totalUsageToday: bigint;
+    }> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getUsageStats();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getUsageStats();
+            return result;
+        }
+    }
+    async updateProduct(arg0: bigint, arg1: string, arg2: bigint, arg3: bigint, arg4: string, arg5: bigint): Promise<Product | null> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateProduct(arg0, arg1, arg2, arg3, arg4, arg5);
+                return from_candid_opt_n1(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateProduct(arg0, arg1, arg2, arg3, arg4, arg5);
+            return from_candid_opt_n1(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async updateStaff(arg0: bigint, arg1: string, arg2: string): Promise<Staff | null> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateStaff(arg0, arg1, arg2);
+                return from_candid_opt_n2(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateStaff(arg0, arg1, arg2);
+            return from_candid_opt_n2(this._uploadFile, this._downloadFile, result);
+        }
+    }
 }
 function from_candid_opt_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_Product]): Product | null {
+    return value.length === 0 ? null : value[0];
+}
+function from_candid_opt_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: [] | [_Staff]): Staff | null {
     return value.length === 0 ? null : value[0];
 }
 export interface CreateActorOptions {

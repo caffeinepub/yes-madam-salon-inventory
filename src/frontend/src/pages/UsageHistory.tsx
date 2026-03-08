@@ -17,7 +17,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ChevronLeft, ChevronRight, FilterX, History } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  FilterX,
+  History,
+  Search,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   useCategories,
@@ -39,6 +46,7 @@ export function UsageHistory() {
   const [filterStaff, setFilterStaff] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [search, setSearch] = useState("");
 
   const deletedIds = useMemo(() => {
     try {
@@ -81,6 +89,19 @@ export function UsageHistory() {
           return false;
         if (dateFrom && r.date < dateFrom) return false;
         if (dateTo && r.date > dateTo) return false;
+        if (search.trim()) {
+          const q = search.toLowerCase();
+          const productName = (productMap[r.productId] ?? "").toLowerCase();
+          const staffName = (staffMap[r.staffId] ?? "").toLowerCase();
+          const client = (r.clientName ?? "").toLowerCase();
+          if (
+            !productName.includes(q) &&
+            !staffName.includes(q) &&
+            !client.includes(q) &&
+            !r.date.includes(q)
+          )
+            return false;
+        }
         return true;
       })
       .sort((a, b) => {
@@ -88,7 +109,48 @@ export function UsageHistory() {
         const db = new Date(`${b.date}T${b.time}`).getTime();
         return db - da;
       });
-  }, [usageRecords, filterProduct, filterStaff, dateFrom, dateTo]);
+  }, [
+    usageRecords,
+    filterProduct,
+    filterStaff,
+    dateFrom,
+    dateTo,
+    search,
+    productMap,
+    staffMap,
+  ]);
+
+  function exportUsageToExcel() {
+    const today = new Date().toISOString().slice(0, 10);
+    const header = [
+      "Date",
+      "Time",
+      "Product",
+      "Category",
+      "Staff",
+      "Qty",
+      "Client",
+    ];
+    const rows = filtered.map((r) => [
+      r.date,
+      r.time,
+      productMap[r.productId] ?? `#${r.productId}`,
+      categoryMap[r.categoryId] ?? "",
+      staffMap[r.staffId] ?? "",
+      r.quantity,
+      r.clientName ?? "",
+    ]);
+    const csvContent = [header, ...rows]
+      .map((row) => row.map((cell) => `"${cell}"`).join(","))
+      .join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `usage_history_${today}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -98,27 +160,61 @@ export function UsageHistory() {
     setFilterStaff("all");
     setDateFrom("");
     setDateTo("");
+    setSearch("");
     setPage(1);
   };
 
   const hasFilters =
-    filterProduct !== "all" || filterStaff !== "all" || dateFrom || dateTo;
+    filterProduct !== "all" ||
+    filterStaff !== "all" ||
+    dateFrom ||
+    dateTo ||
+    search.trim();
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <h1 className="font-display text-3xl font-bold text-foreground">
-          Usage History
-        </h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Complete log of all product usage records
-        </p>
+      <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="font-display text-3xl font-bold text-foreground">
+            Usage History
+          </h1>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Complete log of all product usage records
+          </p>
+        </div>
+        <Button
+          data-ocid="usage_history.download_button"
+          variant="outline"
+          onClick={exportUsageToExcel}
+        >
+          <Download size={15} className="mr-1.5" />
+          Download Excel
+        </Button>
       </div>
 
       {/* Filters */}
       <Card className="shadow-card mb-5">
         <CardContent className="pt-4 pb-4">
           <div className="flex flex-wrap gap-3 items-end">
+            <div className="space-y-1.5 min-w-[200px]">
+              <Label className="text-xs text-muted-foreground">Search</Label>
+              <div className="relative">
+                <Search
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                />
+                <Input
+                  data-ocid="usage_history.search_input"
+                  className="pl-9 h-9"
+                  placeholder="Product, staff, client..."
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </div>
+            </div>
             <div className="space-y-1.5 min-w-[160px]">
               <Label className="text-xs text-muted-foreground">Product</Label>
               <Select

@@ -21,13 +21,42 @@ export interface Product {
   'currentStock' : bigint,
   'openingStock' : bigint,
 }
+export interface Staff { 'id' : bigint, 'name' : string, 'role' : string }
+export interface UsageRecord {
+  'id' : bigint,
+  'categoryId' : bigint,
+  'staffId' : bigint,
+  'clientName' : string,
+  'date' : string,
+  'time' : string,
+  'productId' : bigint,
+  'quantity' : bigint,
+}
 export interface _SERVICE {
   'addCategory' : ActorMethod<[string], Category>,
   'addProduct' : ActorMethod<[string, bigint, bigint, string, bigint], Product>,
+  'addStaff' : ActorMethod<[string, string], Staff>,
+  'addUsageRecord' : ActorMethod<
+    [string, bigint, bigint, bigint, bigint, string, string],
+    UsageRecord
+  >,
   'deleteCategory' : ActorMethod<[bigint], boolean>,
+  'deleteProduct' : ActorMethod<[bigint], boolean>,
+  'deleteStaff' : ActorMethod<[bigint], boolean>,
   'getCategories' : ActorMethod<[], Array<Category>>,
   'getProductById' : ActorMethod<[bigint], [] | [Product]>,
   'getProducts' : ActorMethod<[], Array<Product>>,
+  'getStaff' : ActorMethod<[], Array<Staff>>,
+  'getUsageRecords' : ActorMethod<[], Array<UsageRecord>>,
+  'getUsageStats' : ActorMethod<
+    [],
+    { 'totalUsageAllTime' : bigint, 'totalUsageToday' : bigint }
+  >,
+  'updateProduct' : ActorMethod<
+    [bigint, string, bigint, bigint, string, bigint],
+    [] | [Product]
+  >,
+  'updateStaff' : ActorMethod<[bigint, string, string], [] | [Staff]>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

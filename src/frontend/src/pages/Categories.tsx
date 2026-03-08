@@ -22,8 +22,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Tag, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Download, Plus, Search, Tag, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   useAddCategory,
@@ -31,9 +31,20 @@ import {
   useDeleteCategory,
 } from "../hooks/useQueries";
 
-const DEFAULT_CATEGORY_IDS = new Set([
-  1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-]);
+function exportToExcel(data: { id: number; name: string }[], filename: string) {
+  const header = ["ID", "Category Name"];
+  const rows = data.map((c) => [c.id, c.name]);
+  const csvContent = [header, ...rows]
+    .map((row) => row.map((cell) => `"${cell}"`).join(","))
+    .join("\n");
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export function Categories() {
   const { data: categories = [], isLoading } = useCategories();
@@ -41,10 +52,18 @@ export function Categories() {
   const deleteMutation = useDeleteCategory();
 
   const [newName, setNewName] = useState("");
+  const [search, setSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<{
     id: number;
     name: string;
   } | null>(null);
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return categories;
+    return categories.filter((c) =>
+      c.name.toLowerCase().includes(search.toLowerCase()),
+    );
+  }, [categories, search]);
 
   const handleAdd = async () => {
     const trimmed = newName.trim();
@@ -101,7 +120,7 @@ export function Categories() {
               <Input
                 id="cat-name"
                 data-ocid="categories.name.input"
-                placeholder="e.g., Hair Color"
+                placeholder="e.g., Nail Art"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleAdd()}
@@ -121,13 +140,40 @@ export function Categories() {
         {/* Category List */}
         <Card className="lg:col-span-2 shadow-card">
           <CardHeader className="pb-3">
-            <CardTitle className="font-display text-lg flex items-center gap-2">
-              <Tag size={18} className="text-primary" />
-              All Categories
-              <Badge variant="secondary" className="ml-auto font-body text-xs">
-                {categories.length}
-              </Badge>
-            </CardTitle>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <CardTitle className="font-display text-lg flex items-center gap-2">
+                <Tag size={18} className="text-primary" />
+                All Categories
+                <Badge variant="secondary" className="ml-2 font-body text-xs">
+                  {filtered.length}
+                </Badge>
+              </CardTitle>
+              <Button
+                data-ocid="categories.download_button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const today = new Date().toISOString().slice(0, 10);
+                  exportToExcel(filtered, `categories_${today}.csv`);
+                }}
+              >
+                <Download size={14} className="mr-1.5" />
+                Download Excel
+              </Button>
+            </div>
+            <div className="relative mt-2">
+              <Search
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
+              <Input
+                data-ocid="categories.search_input"
+                className="pl-9 h-9"
+                placeholder="Search categories..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             {isLoading ? (
@@ -136,7 +182,7 @@ export function Categories() {
                   <Skeleton key={key} className="h-10 w-full" />
                 ))}
               </div>
-            ) : categories.length === 0 ? (
+            ) : filtered.length === 0 ? (
               <div
                 data-ocid="categories.empty_state"
                 className="text-center py-12 text-muted-foreground text-sm"
@@ -151,13 +197,11 @@ export function Categories() {
                     <TableRow>
                       <TableHead className="text-xs w-16">ID</TableHead>
                       <TableHead className="text-xs">Name</TableHead>
-                      <TableHead className="text-xs">Type</TableHead>
                       <TableHead className="text-xs w-16" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {categories.map((cat, idx) => {
-                      const isDefault = DEFAULT_CATEGORY_IDS.has(cat.id);
+                    {filtered.map((cat, idx) => {
                       const ocidIdx = idx + 1;
                       return (
                         <TableRow
@@ -171,39 +215,20 @@ export function Categories() {
                             {cat.name}
                           </TableCell>
                           <TableCell>
-                            {isDefault ? (
-                              <Badge
-                                variant="secondary"
-                                className="text-xs font-body"
-                              >
-                                Default
-                              </Badge>
-                            ) : (
-                              <Badge
-                                variant="outline"
-                                className="text-xs font-body text-primary border-primary/30"
-                              >
-                                Custom
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {!isDefault && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                data-ocid={`categories.delete_button.${ocidIdx}`}
-                                onClick={() =>
-                                  setDeleteTarget({
-                                    id: cat.id,
-                                    name: cat.name,
-                                  })
-                                }
-                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              >
-                                <Trash2 size={14} />
-                              </Button>
-                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              data-ocid={`categories.delete_button.${ocidIdx}`}
+                              onClick={() =>
+                                setDeleteTarget({
+                                  id: cat.id,
+                                  name: cat.name,
+                                })
+                              }
+                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 size={14} />
+                            </Button>
                           </TableCell>
                         </TableRow>
                       );

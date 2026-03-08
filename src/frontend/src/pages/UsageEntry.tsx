@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CheckCircle2, ClipboardList } from "lucide-react";
+import { CheckCircle2, ClipboardList, Search } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -52,6 +52,8 @@ export function UsageEntry() {
     quantity: "",
     clientName: "",
   });
+
+  const [searchQuery, setSearchQuery] = useState("");
 
   const deletedIds = useMemo(() => {
     try {
@@ -90,17 +92,30 @@ export function UsageEntry() {
     [activeProducts],
   );
 
-  const recentUsage = useMemo(
-    () =>
-      [...usageRecords]
-        .sort((a, b) => {
-          const da = new Date(`${a.date}T${a.time}`).getTime();
-          const db = new Date(`${b.date}T${b.time}`).getTime();
-          return db - da;
-        })
-        .slice(0, 5),
-    [usageRecords],
-  );
+  const recentUsage = useMemo(() => {
+    const sorted = [...usageRecords].sort((a, b) => {
+      const da = new Date(`${a.date}T${a.time}`).getTime();
+      const db = new Date(`${b.date}T${b.time}`).getTime();
+      return db - da;
+    });
+
+    if (!searchQuery.trim()) return sorted.slice(0, 10);
+
+    const q = searchQuery.toLowerCase();
+    return sorted.filter((r) => {
+      const productName = (productMap[r.productId] ?? "").toLowerCase();
+      const staffName = (staffMap[r.staffId] ?? "").toLowerCase();
+      const clientName = (r.clientName ?? "").toLowerCase();
+      const categoryName = (categoryMap[r.categoryId] ?? "").toLowerCase();
+      return (
+        productName.includes(q) ||
+        staffName.includes(q) ||
+        clientName.includes(q) ||
+        categoryName.includes(q) ||
+        r.date.includes(q)
+      );
+    });
+  }, [usageRecords, searchQuery, productMap, staffMap, categoryMap]);
 
   const handleSubmit = async () => {
     if (!form.productId) {
@@ -318,16 +333,34 @@ export function UsageEntry() {
 
         {/* Recent Usage */}
         <Card className="lg:col-span-2 shadow-card">
-          <CardHeader className="pb-3">
+          <CardHeader className="pb-3 space-y-3">
             <CardTitle className="font-display text-lg">
               Recent Entries
             </CardTitle>
+            <div className="relative">
+              <Search
+                size={14}
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
+              <Input
+                data-ocid="usage_entry.search_input"
+                placeholder="Search by product, staff, client..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-8 h-8 text-sm"
+              />
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             {recentUsage.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground text-sm px-4">
+              <div
+                data-ocid="usage_entry.empty_state"
+                className="text-center py-8 text-muted-foreground text-sm px-4"
+              >
                 <ClipboardList size={28} className="mx-auto mb-2 opacity-30" />
-                No entries yet
+                {searchQuery.trim()
+                  ? "No matching entries found"
+                  : "No entries yet"}
               </div>
             ) : (
               <div className="divide-y divide-border">

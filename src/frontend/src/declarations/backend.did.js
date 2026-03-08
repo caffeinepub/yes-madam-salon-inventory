@@ -19,6 +19,21 @@ export const Product = IDL.Record({
   'currentStock' : IDL.Nat,
   'openingStock' : IDL.Nat,
 });
+export const Staff = IDL.Record({
+  'id' : IDL.Nat,
+  'name' : IDL.Text,
+  'role' : IDL.Text,
+});
+export const UsageRecord = IDL.Record({
+  'id' : IDL.Nat,
+  'categoryId' : IDL.Nat,
+  'staffId' : IDL.Nat,
+  'clientName' : IDL.Text,
+  'date' : IDL.Text,
+  'time' : IDL.Text,
+  'productId' : IDL.Nat,
+  'quantity' : IDL.Nat,
+});
 
 export const idlService = IDL.Service({
   'addCategory' : IDL.Func([IDL.Text], [Category], []),
@@ -27,10 +42,36 @@ export const idlService = IDL.Service({
       [Product],
       [],
     ),
+  'addStaff' : IDL.Func([IDL.Text, IDL.Text], [Staff], []),
+  'addUsageRecord' : IDL.Func(
+      [IDL.Text, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Text, IDL.Text],
+      [UsageRecord],
+      [],
+    ),
   'deleteCategory' : IDL.Func([IDL.Nat], [IDL.Bool], []),
+  'deleteProduct' : IDL.Func([IDL.Nat], [IDL.Bool], []),
+  'deleteStaff' : IDL.Func([IDL.Nat], [IDL.Bool], []),
   'getCategories' : IDL.Func([], [IDL.Vec(Category)], ['query']),
   'getProductById' : IDL.Func([IDL.Nat], [IDL.Opt(Product)], ['query']),
   'getProducts' : IDL.Func([], [IDL.Vec(Product)], ['query']),
+  'getStaff' : IDL.Func([], [IDL.Vec(Staff)], ['query']),
+  'getUsageRecords' : IDL.Func([], [IDL.Vec(UsageRecord)], ['query']),
+  'getUsageStats' : IDL.Func(
+      [],
+      [
+        IDL.Record({
+          'totalUsageAllTime' : IDL.Nat,
+          'totalUsageToday' : IDL.Nat,
+        }),
+      ],
+      ['query'],
+    ),
+  'updateProduct' : IDL.Func(
+      [IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat, IDL.Text, IDL.Nat],
+      [IDL.Opt(Product)],
+      [],
+    ),
+  'updateStaff' : IDL.Func([IDL.Nat, IDL.Text, IDL.Text], [IDL.Opt(Staff)], []),
 });
 
 export const idlInitArgs = [];
@@ -47,6 +88,21 @@ export const idlFactory = ({ IDL }) => {
     'currentStock' : IDL.Nat,
     'openingStock' : IDL.Nat,
   });
+  const Staff = IDL.Record({
+    'id' : IDL.Nat,
+    'name' : IDL.Text,
+    'role' : IDL.Text,
+  });
+  const UsageRecord = IDL.Record({
+    'id' : IDL.Nat,
+    'categoryId' : IDL.Nat,
+    'staffId' : IDL.Nat,
+    'clientName' : IDL.Text,
+    'date' : IDL.Text,
+    'time' : IDL.Text,
+    'productId' : IDL.Nat,
+    'quantity' : IDL.Nat,
+  });
   
   return IDL.Service({
     'addCategory' : IDL.Func([IDL.Text], [Category], []),
@@ -55,10 +111,40 @@ export const idlFactory = ({ IDL }) => {
         [Product],
         [],
       ),
+    'addStaff' : IDL.Func([IDL.Text, IDL.Text], [Staff], []),
+    'addUsageRecord' : IDL.Func(
+        [IDL.Text, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Text, IDL.Text],
+        [UsageRecord],
+        [],
+      ),
     'deleteCategory' : IDL.Func([IDL.Nat], [IDL.Bool], []),
+    'deleteProduct' : IDL.Func([IDL.Nat], [IDL.Bool], []),
+    'deleteStaff' : IDL.Func([IDL.Nat], [IDL.Bool], []),
     'getCategories' : IDL.Func([], [IDL.Vec(Category)], ['query']),
     'getProductById' : IDL.Func([IDL.Nat], [IDL.Opt(Product)], ['query']),
     'getProducts' : IDL.Func([], [IDL.Vec(Product)], ['query']),
+    'getStaff' : IDL.Func([], [IDL.Vec(Staff)], ['query']),
+    'getUsageRecords' : IDL.Func([], [IDL.Vec(UsageRecord)], ['query']),
+    'getUsageStats' : IDL.Func(
+        [],
+        [
+          IDL.Record({
+            'totalUsageAllTime' : IDL.Nat,
+            'totalUsageToday' : IDL.Nat,
+          }),
+        ],
+        ['query'],
+      ),
+    'updateProduct' : IDL.Func(
+        [IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat, IDL.Text, IDL.Nat],
+        [IDL.Opt(Product)],
+        [],
+      ),
+    'updateStaff' : IDL.Func(
+        [IDL.Nat, IDL.Text, IDL.Text],
+        [IDL.Opt(Staff)],
+        [],
+      ),
   });
 };
 

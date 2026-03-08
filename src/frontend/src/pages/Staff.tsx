@@ -28,8 +28,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pencil, Plus, Trash2, Users } from "lucide-react";
-import { useState } from "react";
+import { Download, Pencil, Plus, Search, Trash2, Users } from "lucide-react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   useAddStaff,
@@ -37,6 +37,24 @@ import {
   useStaff,
   useUpdateStaff,
 } from "../hooks/useQueries";
+
+function exportStaffToExcel(
+  data: { id: number; name: string; role: string }[],
+  filename: string,
+) {
+  const header = ["ID", "Name", "Role"];
+  const rows = data.map((s) => [s.id, s.name, s.role]);
+  const csvContent = [header, ...rows]
+    .map((row) => row.map((cell) => `"${cell}"`).join(","))
+    .join("\n");
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 interface FormData {
   name: string;
@@ -60,10 +78,20 @@ export function Staff() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<FormData>(EMPTY_FORM);
+  const [search, setSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<{
     id: number;
     name: string;
   } | null>(null);
+
+  const filteredStaff = useMemo(() => {
+    if (!search.trim()) return staff;
+    return staff.filter(
+      (s) =>
+        s.name.toLowerCase().includes(search.toLowerCase()) ||
+        s.role.toLowerCase().includes(search.toLowerCase()),
+    );
+  }, [staff, search]);
 
   const openAdd = () => {
     setEditingId(null);
@@ -142,30 +170,59 @@ export function Staff() {
 
       <Card className="shadow-card">
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <CardTitle className="font-display text-lg flex items-center gap-2">
               <Users size={18} className="text-primary" />
               Team Members
               <Badge variant="secondary" className="ml-2 font-body text-xs">
-                {staff.length}
+                {filteredStaff.length}
               </Badge>
             </CardTitle>
-            <Button data-ocid="staff.add_button" onClick={openAdd} size="sm">
-              <Plus size={15} className="mr-1.5" />
-              Add Staff
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                data-ocid="staff.download_button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const today = new Date().toISOString().slice(0, 10);
+                  exportStaffToExcel(filteredStaff, `staff_${today}.csv`);
+                }}
+              >
+                <Download size={14} className="mr-1.5" />
+                Download Excel
+              </Button>
+              <Button data-ocid="staff.add_button" onClick={openAdd} size="sm">
+                <Plus size={15} className="mr-1.5" />
+                Add Staff
+              </Button>
+            </div>
+          </div>
+          <div className="relative mt-2">
+            <Search
+              size={14}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              data-ocid="staff.search_input"
+              className="pl-9 h-9"
+              placeholder="Search staff by name or role..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          {staff.length === 0 ? (
+          {filteredStaff.length === 0 ? (
             <div
               data-ocid="staff.empty_state"
               className="text-center py-12 text-muted-foreground text-sm"
             >
               <Users size={36} className="mx-auto mb-3 opacity-30" />
-              <p className="font-medium">No staff members yet</p>
+              <p className="font-medium">No staff members found</p>
               <p className="text-xs mt-1">
-                Add your first team member to get started
+                {search
+                  ? "Try a different search"
+                  : "Add your first team member to get started"}
               </p>
             </div>
           ) : (
@@ -178,7 +235,7 @@ export function Staff() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {staff.map((s, idx) => {
+                {filteredStaff.map((s, idx) => {
                   const ocidIdx = idx + 1;
                   const roleClass =
                     ROLE_COLORS[s.role] ??
