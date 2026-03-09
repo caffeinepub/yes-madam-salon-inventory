@@ -291,10 +291,10 @@ export function Equipment() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {currentlyOut.map((c) => (
+            {currentlyOut.map((c, idx) => (
               <div
                 key={c.id}
-                data-ocid="equipment.currently_out.card"
+                data-ocid={`equipment.currently_out.card.${idx + 1}`}
                 className="rounded-lg border border-amber-200 bg-amber-50 p-4"
               >
                 <div className="flex items-start justify-between gap-2">
@@ -315,9 +315,21 @@ export function Equipment() {
                     Out
                   </Badge>
                 </div>
-                <div className="mt-3 pt-2 border-t border-amber-200 flex items-center gap-3 text-xs text-amber-700">
-                  <span>{c.date}</span>
-                  <span>Taken at {c.takenAt}</span>
+                <div className="mt-3 pt-2 border-t border-amber-200 flex items-center justify-between gap-3 text-xs text-amber-700">
+                  <div className="flex items-center gap-3">
+                    <span>{c.date}</span>
+                    <span>Taken at {c.takenAt}</span>
+                  </div>
+                  <Button
+                    size="sm"
+                    data-ocid={`equipment.checkin_button.${idx + 1}`}
+                    onClick={() => returnMutation.mutate(c.id)}
+                    disabled={returnMutation.isPending}
+                    className="h-7 text-xs px-3 bg-green-600 hover:bg-green-700 text-white border-0 shrink-0"
+                  >
+                    <CheckCircle2 size={12} className="mr-1" />
+                    Check In
+                  </Button>
                 </div>
               </div>
             ))}
