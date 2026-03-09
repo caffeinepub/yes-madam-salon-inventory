@@ -39,11 +39,11 @@ import {
 } from "../hooks/useQueries";
 
 function exportStaffToExcel(
-  data: { id: number; name: string; role: string }[],
+  data: { id: number; name: string; role: string; mobile?: string }[],
   filename: string,
 ) {
-  const header = ["ID", "Name", "Role"];
-  const rows = data.map((s) => [s.id, s.name, s.role]);
+  const header = ["ID", "Name", "Role", "Mobile"];
+  const rows = data.map((s) => [s.id, s.name, s.role, s.mobile ?? ""]);
   const csvContent = [header, ...rows]
     .map((row) => row.map((cell) => `"${cell}"`).join(","))
     .join("\n");
@@ -59,9 +59,10 @@ function exportStaffToExcel(
 interface FormData {
   name: string;
   role: string;
+  mobile: string;
 }
 
-const EMPTY_FORM: FormData = { name: "", role: "" };
+const EMPTY_FORM: FormData = { name: "", role: "", mobile: "" };
 
 const ROLE_COLORS: Record<string, string> = {
   Senior: "bg-primary/10 text-primary border-primary/20",
@@ -89,7 +90,8 @@ export function Staff() {
     return staff.filter(
       (s) =>
         s.name.toLowerCase().includes(search.toLowerCase()) ||
-        s.role.toLowerCase().includes(search.toLowerCase()),
+        s.role.toLowerCase().includes(search.toLowerCase()) ||
+        (s.mobile ?? "").includes(search),
     );
   }, [staff, search]);
 
@@ -99,9 +101,14 @@ export function Staff() {
     setDialogOpen(true);
   };
 
-  const openEdit = (s: { id: number; name: string; role: string }) => {
+  const openEdit = (s: {
+    id: number;
+    name: string;
+    role: string;
+    mobile?: string;
+  }) => {
     setEditingId(s.id);
-    setForm({ name: s.name, role: s.role });
+    setForm({ name: s.name, role: s.role, mobile: s.mobile ?? "" });
     setDialogOpen(true);
   };
 
@@ -120,12 +127,14 @@ export function Staff() {
           id: editingId,
           name: form.name.trim(),
           role: form.role.trim(),
+          mobile: form.mobile.trim() || undefined,
         });
         toast.success("Staff member updated");
       } else {
         await addMutation.mutateAsync({
           name: form.name.trim(),
           role: form.role.trim(),
+          mobile: form.mobile.trim() || undefined,
         });
         toast.success(`${form.name.trim()} added to staff`);
       }
@@ -231,6 +240,7 @@ export function Staff() {
                 <TableRow className="bg-muted/40">
                   <TableHead className="text-xs">Member</TableHead>
                   <TableHead className="text-xs">Role</TableHead>
+                  <TableHead className="text-xs">Mobile</TableHead>
                   <TableHead className="text-xs w-24">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -257,6 +267,9 @@ export function Staff() {
                         >
                           {s.role}
                         </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {s.mobile ?? "—"}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
@@ -321,6 +334,24 @@ export function Staff() {
                 value={form.role}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, role: e.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="s-mobile">
+                Mobile Number{" "}
+                <span className="text-muted-foreground text-xs">
+                  (optional)
+                </span>
+              </Label>
+              <Input
+                id="s-mobile"
+                data-ocid="staff.mobile.input"
+                placeholder="e.g., 9876543210"
+                type="tel"
+                value={form.mobile}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, mobile: e.target.value }))
                 }
               />
             </div>

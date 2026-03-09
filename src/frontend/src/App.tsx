@@ -1,8 +1,12 @@
 import { Toaster } from "@/components/ui/sonner";
 import { useEffect, useState } from "react";
 import { AppLayout } from "./components/AppLayout";
+import { Attendance } from "./pages/Attendance";
+import { CashLedger } from "./pages/CashLedger";
 import { Categories } from "./pages/Categories";
+import { Charts } from "./pages/Charts";
 import { Dashboard } from "./pages/Dashboard";
+import { Equipment } from "./pages/Equipment";
 import { Products } from "./pages/Products";
 import { Staff } from "./pages/Staff";
 import { UsageEntry } from "./pages/UsageEntry";
@@ -13,8 +17,12 @@ type Route =
   | "/categories"
   | "/products"
   | "/staff"
+  | "/attendance"
+  | "/equipment"
   | "/usage"
-  | "/usage-history";
+  | "/usage-history"
+  | "/charts"
+  | "/cash-ledger";
 
 function getHashRoute(): Route {
   const hash = window.location.hash.replace("#", "") || "/";
@@ -23,8 +31,12 @@ function getHashRoute(): Route {
     "/categories",
     "/products",
     "/staff",
+    "/attendance",
+    "/equipment",
     "/usage",
     "/usage-history",
+    "/charts",
+    "/cash-ledger",
   ];
   return valid.includes(hash as Route) ? (hash as Route) : "/";
 }
@@ -53,10 +65,18 @@ export default function App() {
         return <Products />;
       case "/staff":
         return <Staff />;
+      case "/attendance":
+        return <Attendance />;
+      case "/equipment":
+        return <Equipment />;
       case "/usage":
         return <UsageEntry />;
       case "/usage-history":
         return <UsageHistory />;
+      case "/charts":
+        return <Charts />;
+      case "/cash-ledger":
+        return <CashLedger />;
       default:
         return <Dashboard />;
     }

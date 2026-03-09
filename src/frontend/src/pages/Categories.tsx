@@ -22,7 +22,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Download, Plus, Search, Tag, Trash2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Download, Loader2, Plus, Search, Tag, Trash2, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -58,6 +59,12 @@ export function Categories() {
     name: string;
   } | null>(null);
 
+  // Paste multiple mode
+  const [addMode, setAddMode] = useState<"single" | "paste">("single");
+  const [pasteText, setPasteText] = useState("");
+  const [parsedNames, setParsedNames] = useState<string[]>([]);
+  const [isAddingAll, setIsAddingAll] = useState(false);
+
   const filtered = useMemo(() => {
     if (!search.trim()) return categories;
     return categories.filter((c) =>
@@ -92,6 +99,46 @@ export function Categories() {
     }
   };
 
+  const handleParsePaste = () => {
+    const raw = pasteText;
+    const names = raw
+      .split(/[\n,]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    // Deduplicate
+    const unique = [...new Set(names)];
+    setParsedNames(unique);
+    if (unique.length === 0) {
+      toast.error(
+        "No valid names found. Enter names separated by commas or new lines.",
+      );
+    }
+  };
+
+  const handleRemoveParsed = (idx: number) => {
+    setParsedNames((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleAddAll = async () => {
+    if (parsedNames.length === 0) return;
+    setIsAddingAll(true);
+    let added = 0;
+    let failed = 0;
+    for (const name of parsedNames) {
+      try {
+        await addMutation.mutateAsync(name);
+        added++;
+      } catch {
+        failed++;
+      }
+    }
+    setIsAddingAll(false);
+    setParsedNames([]);
+    setPasteText("");
+    if (added > 0) toast.success(`${added} categories added`);
+    if (failed > 0) toast.error(`${failed} categories failed to add`);
+  };
+
   return (
     <div className="p-8">
       <div className="mb-8">
@@ -113,27 +160,131 @@ export function Categories() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="cat-name" className="text-sm font-medium">
-                Category Name
-              </Label>
-              <Input
-                id="cat-name"
-                data-ocid="categories.name.input"
-                placeholder="e.g., Nail Art"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-              />
+            {/* Mode Toggle */}
+            <div className="flex gap-1 p-1 bg-muted rounded-lg">
+              <button
+                type="button"
+                data-ocid="categories.mode_single.tab"
+                onClick={() => setAddMode("single")}
+                className={`flex-1 text-xs font-medium py-1.5 px-2 rounded-md transition-colors ${
+                  addMode === "single"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Single
+              </button>
+              <button
+                type="button"
+                data-ocid="categories.mode_paste.tab"
+                onClick={() => setAddMode("paste")}
+                className={`flex-1 text-xs font-medium py-1.5 px-2 rounded-md transition-colors ${
+                  addMode === "paste"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Paste Multiple
+              </button>
             </div>
-            <Button
-              data-ocid="categories.submit_button"
-              onClick={handleAdd}
-              disabled={addMutation.isPending}
-              className="w-full"
-            >
-              {addMutation.isPending ? "Adding..." : "Add Category"}
-            </Button>
+
+            {addMode === "single" ? (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="cat-name" className="text-sm font-medium">
+                    Category Name
+                  </Label>
+                  <Input
+                    id="cat-name"
+                    data-ocid="categories.name.input"
+                    placeholder="e.g., Nail Art"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+                  />
+                </div>
+                <Button
+                  data-ocid="categories.submit_button"
+                  onClick={handleAdd}
+                  disabled={addMutation.isPending}
+                  className="w-full"
+                >
+                  {addMutation.isPending ? "Adding..." : "Add Category"}
+                </Button>
+              </>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">
+                    Paste Category Names
+                  </Label>
+                  <Textarea
+                    data-ocid="categories.paste_textarea"
+                    placeholder={"Bleach\nFacial\nWax, Hair Spa, Cleanup"}
+                    value={pasteText}
+                    onChange={(e) => {
+                      setPasteText(e.target.value);
+                      setParsedNames([]);
+                    }}
+                    rows={4}
+                    className="text-sm resize-none"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    One per line or comma-separated
+                  </p>
+                </div>
+                <Button
+                  data-ocid="categories.parse_button"
+                  variant="outline"
+                  onClick={handleParsePaste}
+                  className="w-full"
+                  disabled={!pasteText.trim()}
+                >
+                  Preview Names
+                </Button>
+
+                {parsedNames.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-foreground">
+                      Preview ({parsedNames.length} names):
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2 bg-muted/40 rounded-md">
+                      {parsedNames.map((name, idx) => (
+                        <Badge
+                          key={name}
+                          variant="secondary"
+                          className="text-xs pl-2 pr-1 py-0.5 flex items-center gap-1"
+                        >
+                          {name}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveParsed(idx)}
+                            className="hover:text-destructive transition-colors ml-0.5"
+                          >
+                            <X size={10} />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                    <Button
+                      data-ocid="categories.add_all_button"
+                      onClick={handleAddAll}
+                      disabled={isAddingAll || parsedNames.length === 0}
+                      className="w-full"
+                    >
+                      {isAddingAll ? (
+                        <>
+                          <Loader2 size={14} className="mr-2 animate-spin" />
+                          Adding...
+                        </>
+                      ) : (
+                        `Add All (${parsedNames.length})`
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
           </CardContent>
         </Card>
 

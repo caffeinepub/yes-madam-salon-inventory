@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -35,11 +36,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
+  ClipboardPaste,
   Download,
+  Loader2,
   Pencil,
   Plus,
   Search,
@@ -57,6 +61,440 @@ import {
 
 const PAGE_SIZE = 10;
 
+// ── Paste from Excel types ────────────────────────────────────────────────────
+
+interface ParsedRow {
+  name: string;
+  rawCategory: string;
+  unit: string;
+  openingStock: number;
+  rackNumber: string;
+  matchedCategoryId: number | null;
+  matchedCategoryName: string | null;
+  // override category picked by user for unmatched rows
+  overrideCategoryId: string;
+}
+
+const HEADER_KEYWORDS = [
+  "name",
+  "product",
+  "category",
+  "unit",
+  "stock",
+  "rack",
+];
+
+function detectHeader(firstRow: string[]): boolean {
+  const lower = firstRow.map((c) => c.toLowerCase());
+  return HEADER_KEYWORDS.some((kw) => lower.some((cell) => cell.includes(kw)));
+}
+
+function parseExcelPaste(
+  raw: string,
+  categories: { id: number; name: string }[],
+): ParsedRow[] {
+  const lines = raw
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  if (lines.length === 0) return [];
+
+  const splitLine = (line: string) =>
+    line.includes("\t") ? line.split("\t") : line.split(",");
+
+  const firstRow = splitLine(lines[0]).map((c) => c.trim());
+  const hasHeader = detectHeader(firstRow);
+  const dataLines = hasHeader ? lines.slice(1) : lines;
+
+  return dataLines
+    .map((line) => {
+      const cols = splitLine(line).map((c) => c.trim());
+      // Expected: Name, Category, Unit, Opening Stock, Rack No
+      const name = cols[0] ?? "";
+      const rawCategory = cols[1] ?? "";
+      const unit = cols[2] ?? "pcs";
+      const openingStock = Number(cols[3]) || 0;
+      const rackNumber = cols[4] ?? "";
+
+      if (!name) return null;
+
+      // Case-insensitive partial match for category
+      const lower = rawCategory.toLowerCase();
+      const matched = categories.find(
+        (c) =>
+          c.name.toLowerCase() === lower ||
+          c.name.toLowerCase().includes(lower) ||
+          lower.includes(c.name.toLowerCase()),
+      );
+
+      return {
+        name,
+        rawCategory,
+        unit,
+        openingStock,
+        rackNumber,
+        matchedCategoryId: matched?.id ?? null,
+        matchedCategoryName: matched?.name ?? null,
+        overrideCategoryId: matched ? String(matched.id) : "",
+      } satisfies ParsedRow;
+    })
+    .filter((r): r is ParsedRow => r !== null);
+}
+
+// ── PasteImportDialog ─────────────────────────────────────────────────────────
+
+interface PasteImportDialogProps {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  categories: { id: number; name: string }[];
+  onImportDone: () => void;
+}
+
+function PasteImportDialog({
+  open,
+  onOpenChange,
+  categories,
+  onImportDone,
+}: PasteImportDialogProps) {
+  const addMutation = useAddProduct();
+  const [pasteText, setPasteText] = useState("");
+  const [rows, setRows] = useState<ParsedRow[]>([]);
+  const [parsed, setParsed] = useState(false);
+  const [importing, setImporting] = useState(false);
+
+  const handleParse = () => {
+    if (!pasteText.trim()) {
+      toast.error("Pehle data paste karo");
+      return;
+    }
+    const result = parseExcelPaste(pasteText, categories);
+    if (result.length === 0) {
+      toast.error("Koi valid row nahi mili. Format check karo.");
+      return;
+    }
+    setRows(result);
+    setParsed(true);
+  };
+
+  const readyRows = rows.filter(
+    (r) => r.matchedCategoryId !== null || r.overrideCategoryId !== "",
+  );
+  const notReadyRows = rows.filter(
+    (r) => r.matchedCategoryId === null && r.overrideCategoryId === "",
+  );
+
+  const handleImport = async (onlyReady: boolean) => {
+    const toImport = onlyReady ? readyRows : rows;
+    const importable = toImport.filter(
+      (r) => r.matchedCategoryId !== null || r.overrideCategoryId !== "",
+    );
+
+    if (importable.length === 0) {
+      toast.error("Import karne ke liye koi ready row nahi hai");
+      return;
+    }
+
+    setImporting(true);
+    toast.loading(`${importable.length} products import ho rahe hain...`, {
+      id: "bulk-import",
+    });
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const row of importable) {
+      const catId = row.matchedCategoryId ?? Number(row.overrideCategoryId);
+      if (!catId) {
+        failCount++;
+        continue;
+      }
+      try {
+        await addMutation.mutateAsync({
+          name: row.name,
+          categoryId: catId,
+          openingStock: row.openingStock,
+          unit: row.unit || "pcs",
+          lowStockThreshold: 0,
+          rackNumber: row.rackNumber || undefined,
+        });
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+
+    toast.dismiss("bulk-import");
+    if (successCount > 0) {
+      toast.success(`${successCount} products successfully add ho gaye!`);
+    }
+    if (failCount > 0) {
+      toast.error(`${failCount} products add nahi ho sake`);
+    }
+
+    setImporting(false);
+    setPasteText("");
+    setRows([]);
+    setParsed(false);
+    onOpenChange(false);
+    onImportDone();
+  };
+
+  const handleClose = () => {
+    setPasteText("");
+    setRows([]);
+    setParsed(false);
+    onOpenChange(false);
+  };
+
+  const updateOverride = (idx: number, catId: string) => {
+    setRows((prev) =>
+      prev.map((r, i) => (i === idx ? { ...r, overrideCategoryId: catId } : r)),
+    );
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!importing) {
+          if (!o) handleClose();
+          else onOpenChange(true);
+        }
+      }}
+    >
+      <DialogContent
+        data-ocid="products.paste_import.dialog"
+        className="sm:max-w-3xl max-h-[90vh] flex flex-col"
+      >
+        <DialogHeader>
+          <DialogTitle className="font-display text-xl flex items-center gap-2">
+            <ClipboardPaste size={20} className="text-primary" />
+            Bulk Import from Excel
+          </DialogTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            Excel se data copy karke neeche paste karo.{" "}
+            <span className="font-medium text-foreground">
+              Columns: Name, Category, Unit, Opening Stock, Rack No (optional)
+            </span>
+          </p>
+        </DialogHeader>
+
+        <div className="flex-1 overflow-hidden flex flex-col gap-4 py-2">
+          {!parsed ? (
+            <div className="space-y-3">
+              <Textarea
+                data-ocid="products.paste_import.textarea"
+                placeholder={
+                  "Example format:\nProduct Name\tCategory\tUnit\tOpening Stock\tRack No\nKerastase Shampoo\tHair Spa\tml\t10\tA1\nWax Strip\tWax\tpcs\t50\tB2\nFacial Cream\tFacial\tg\t20\t"
+                }
+                value={pasteText}
+                onChange={(e) => setPasteText(e.target.value)}
+                className="min-h-[200px] font-mono text-sm resize-y"
+                rows={8}
+              />
+              <p className="text-xs text-muted-foreground">
+                💡 Excel mein cells select karke Ctrl+C karo, phir yahan Ctrl+V
+                se paste karo. Tab-separated ya comma-separated dono format
+                chalenge.
+              </p>
+            </div>
+          ) : (
+            <div className="flex-1 overflow-hidden flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-sm font-medium text-foreground">
+                    {rows.length} rows found
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className="bg-green-500/10 text-green-700 border-green-500/30 dark:text-green-400"
+                  >
+                    {readyRows.length} ready
+                  </Badge>
+                  {notReadyRows.length > 0 && (
+                    <Badge
+                      variant="outline"
+                      className="bg-destructive/10 text-destructive border-destructive/30"
+                    >
+                      {notReadyRows.length} category not found
+                    </Badge>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => {
+                    setParsed(false);
+                    setRows([]);
+                  }}
+                >
+                  ← Edit Paste
+                </Button>
+              </div>
+
+              <ScrollArea className="flex-1 max-h-[340px] rounded-md border border-border">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40">
+                      <TableHead className="text-xs w-8">#</TableHead>
+                      <TableHead className="text-xs">Name</TableHead>
+                      <TableHead className="text-xs">Category</TableHead>
+                      <TableHead className="text-xs">Unit</TableHead>
+                      <TableHead className="text-xs text-right">
+                        Opening Stock
+                      </TableHead>
+                      <TableHead className="text-xs">Rack No</TableHead>
+                      <TableHead className="text-xs">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((row, idx) => {
+                      const isReady =
+                        row.matchedCategoryId !== null ||
+                        row.overrideCategoryId !== "";
+                      const rowKey = `${row.name}-${row.rawCategory}-${idx}`;
+                      return (
+                        <TableRow
+                          key={rowKey}
+                          className={!isReady ? "bg-destructive/5" : ""}
+                        >
+                          <TableCell className="text-xs text-muted-foreground">
+                            {idx + 1}
+                          </TableCell>
+                          <TableCell className="text-sm font-medium max-w-[150px] truncate">
+                            {row.name}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {row.matchedCategoryId !== null ? (
+                              <span className="text-green-700 dark:text-green-400 font-medium">
+                                {row.matchedCategoryName}
+                              </span>
+                            ) : (
+                              <Select
+                                value={row.overrideCategoryId}
+                                onValueChange={(v) => updateOverride(idx, v)}
+                              >
+                                <SelectTrigger className="h-7 text-xs w-36 border-destructive/50">
+                                  <SelectValue placeholder="Select…" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {categories.map((c) => (
+                                    <SelectItem
+                                      key={c.id}
+                                      value={String(c.id)}
+                                      className="text-xs"
+                                    >
+                                      {c.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {row.unit || "pcs"}
+                          </TableCell>
+                          <TableCell className="text-sm text-right">
+                            {row.openingStock}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {row.rackNumber || "—"}
+                          </TableCell>
+                          <TableCell>
+                            {isReady ? (
+                              <Badge
+                                variant="outline"
+                                className="text-xs bg-green-500/10 text-green-700 border-green-500/30 dark:text-green-400"
+                              >
+                                Ready
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className="text-xs bg-amber-500/10 text-amber-700 border-amber-500/30"
+                              >
+                                Pick category
+                              </Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="flex-wrap gap-2 sm:gap-2">
+          <Button
+            data-ocid="products.paste_import.cancel_button"
+            variant="outline"
+            onClick={handleClose}
+            disabled={importing}
+          >
+            Cancel
+          </Button>
+
+          {!parsed ? (
+            <Button
+              data-ocid="products.paste_import.parse_button"
+              onClick={handleParse}
+              disabled={!pasteText.trim()}
+            >
+              Parse &amp; Preview
+            </Button>
+          ) : (
+            <>
+              {notReadyRows.length > 0 && readyRows.length > 0 && (
+                <Button
+                  data-ocid="products.paste_import.import_button"
+                  variant="outline"
+                  onClick={() => handleImport(true)}
+                  disabled={importing}
+                >
+                  {importing ? (
+                    <Loader2 size={14} className="mr-1.5 animate-spin" />
+                  ) : null}
+                  Import {readyRows.length} Ready
+                </Button>
+              )}
+              <Button
+                data-ocid="products.paste_import.import_button"
+                onClick={() => handleImport(false)}
+                disabled={
+                  importing ||
+                  rows.every(
+                    (r) =>
+                      r.matchedCategoryId === null &&
+                      r.overrideCategoryId === "",
+                  )
+                }
+              >
+                {importing ? (
+                  <Loader2 size={14} className="mr-1.5 animate-spin" />
+                ) : null}
+                Import All (
+                {
+                  rows.filter(
+                    (r) =>
+                      r.matchedCategoryId !== null ||
+                      r.overrideCategoryId !== "",
+                  ).length
+                }
+                )
+              </Button>
+            </>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 interface ProductFormData {
   name: string;
   categoryId: string;
@@ -64,6 +502,7 @@ interface ProductFormData {
   unit: string;
   lowStockThreshold: string;
   currentStock: string;
+  rackNumber: string;
 }
 
 const EMPTY_FORM: ProductFormData = {
@@ -73,6 +512,7 @@ const EMPTY_FORM: ProductFormData = {
   unit: "",
   lowStockThreshold: "",
   currentStock: "",
+  rackNumber: "",
 };
 
 function exportProductsToExcel(
@@ -85,6 +525,7 @@ function exportProductsToExcel(
     currentStock: number;
     unit: string;
     lowStockThreshold: number;
+    rackNumber?: string;
   }[],
   filename: string,
 ) {
@@ -97,6 +538,7 @@ function exportProductsToExcel(
     "Current Stock",
     "Unit",
     "Low Stock Threshold",
+    "Rack No",
   ];
   const rows = data.map((p) => [
     p.id,
@@ -107,6 +549,7 @@ function exportProductsToExcel(
     p.currentStock,
     p.unit,
     p.lowStockThreshold,
+    p.rackNumber ?? "",
   ]);
   const csvContent = [header, ...rows]
     .map((row) => row.map((cell) => `"${cell}"`).join(","))
@@ -137,6 +580,7 @@ export function Products() {
     id: number;
     name: string;
   } | null>(null);
+  const [pasteImportOpen, setPasteImportOpen] = useState(false);
 
   // Filter out deleted products
   // biome-ignore lint/correctness/useExhaustiveDependencies: depends on products to refresh
@@ -160,8 +604,10 @@ export function Products() {
   const filtered = useMemo(() => {
     return products.filter((p) => {
       if (deletedIds.has(p.id)) return false;
+      const q = search.toLowerCase();
       const matchSearch = search
-        ? p.name.toLowerCase().includes(search.toLowerCase())
+        ? p.name.toLowerCase().includes(q) ||
+          (p.rackNumber ?? "").toLowerCase().includes(q)
         : true;
       const matchCat =
         filterCategory === "all"
@@ -189,6 +635,7 @@ export function Products() {
       unit: p.unit,
       lowStockThreshold: String(p.lowStockThreshold),
       currentStock: String(p.currentStock),
+      rackNumber: p.rackNumber ?? "",
     });
     setDialogOpen(true);
   };
@@ -216,6 +663,7 @@ export function Products() {
           unit: form.unit.trim(),
           lowStockThreshold: Number(form.lowStockThreshold) || 0,
           currentStock: Number(form.currentStock) || 0,
+          rackNumber: form.rackNumber.trim(),
         });
         toast.success("Product updated");
       } else {
@@ -225,6 +673,7 @@ export function Products() {
           openingStock: Number(form.openingStock) || 0,
           unit: form.unit.trim(),
           lowStockThreshold: Number(form.lowStockThreshold) || 0,
+          rackNumber: form.rackNumber.trim(),
         });
         toast.success("Product added");
       }
@@ -310,12 +759,21 @@ export function Products() {
               currentStock: p.currentStock,
               unit: p.unit,
               lowStockThreshold: p.lowStockThreshold,
+              rackNumber: p.rackNumber ?? "",
             }));
             exportProductsToExcel(exportData, `products_${today}.csv`);
           }}
         >
           <Download size={15} className="mr-1.5" />
           Download Excel
+        </Button>
+        <Button
+          data-ocid="products.paste_import_button"
+          variant="outline"
+          onClick={() => setPasteImportOpen(true)}
+        >
+          <ClipboardPaste size={15} className="mr-1.5" />
+          Paste from Excel
         </Button>
         <Button
           data-ocid="products.add_button"
@@ -335,6 +793,7 @@ export function Products() {
               <TableHead className="text-xs">Name</TableHead>
               <TableHead className="text-xs">Category</TableHead>
               <TableHead className="text-xs">Brand</TableHead>
+              <TableHead className="text-xs">Rack No</TableHead>
               <TableHead className="text-xs text-right">
                 Opening Stock
               </TableHead>
@@ -350,7 +809,7 @@ export function Products() {
             {isLoading ? (
               ["r1", "r2", "r3", "r4", "r5"].map((rowKey) => (
                 <TableRow key={rowKey}>
-                  {["c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8"].map(
+                  {["c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9"].map(
                     (colKey) => (
                       <TableCell key={colKey}>
                         <Skeleton className="h-4 w-full" />
@@ -361,7 +820,7 @@ export function Products() {
               ))
             ) : paginated.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8}>
+                <TableCell colSpan={9}>
                   <div
                     data-ocid="products.empty_state"
                     className="text-center py-10 text-muted-foreground text-sm"
@@ -396,6 +855,15 @@ export function Products() {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {product.brand}
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {product.rackNumber ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded bg-primary/10 text-primary text-xs font-semibold">
+                          {product.rackNumber}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-sm text-right">
                       {product.openingStock}
@@ -580,6 +1048,23 @@ export function Products() {
                 }
               />
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="p-rack">
+                Rack Number{" "}
+                <span className="text-muted-foreground text-xs">
+                  (optional)
+                </span>
+              </Label>
+              <Input
+                id="p-rack"
+                data-ocid="products.rack_number.input"
+                placeholder="e.g., A1, B3, Shelf-2"
+                value={form.rackNumber}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, rackNumber: e.target.value }))
+                }
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button
@@ -603,6 +1088,14 @@ export function Products() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Paste from Excel Dialog */}
+      <PasteImportDialog
+        open={pasteImportOpen}
+        onOpenChange={setPasteImportOpen}
+        categories={categories}
+        onImportDone={() => {}}
+      />
 
       {/* Delete Dialog */}
       <AlertDialog

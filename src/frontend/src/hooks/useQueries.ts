@@ -3,6 +3,7 @@ import { createActorWithConfig } from "../config";
 import {
   deleteProductEdit,
   getProductEdits,
+  getRackNumbers,
   getStaff,
   getStockOverrides,
   getUsageRecords,
@@ -12,6 +13,7 @@ import {
   deleteStaff as lsDeleteStaff,
   updateStaff as lsUpdateStaff,
   setProductEdit,
+  setRackNumber,
   setStockOverride,
 } from "../lib/localStorage";
 import type { UsageRecord } from "../types";
@@ -66,6 +68,7 @@ export function useProducts() {
       const products = await actor.getProducts();
       const overrides = getStockOverrides();
       const edits = getProductEdits();
+      const rackNumbers = getRackNumbers();
       const deleted = new Set<number>(
         JSON.parse(localStorage.getItem("ym_deleted_products") || "[]"),
       );
@@ -87,6 +90,7 @@ export function useProducts() {
             unit: edit?.unit ?? p.unit,
             lowStockThreshold:
               edit?.lowStockThreshold ?? Number(p.lowStockThreshold),
+            rackNumber: rackNumbers[id] ?? edit?.rackNumber ?? "",
           };
         });
     },
@@ -103,6 +107,7 @@ export function useAddProduct() {
       openingStock: number;
       unit: string;
       lowStockThreshold: number;
+      rackNumber?: string;
     }) => {
       const actor = await createActorWithConfig();
       const p = await actor.addProduct(
@@ -114,6 +119,9 @@ export function useAddProduct() {
       );
       const id = Number(p.id);
       initStockOverride(id, Number(p.openingStock));
+      if (data.rackNumber !== undefined) {
+        setRackNumber(id, data.rackNumber);
+      }
       return p;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["products"] }),
@@ -130,14 +138,19 @@ export function useUpdateProduct() {
       unit: string;
       lowStockThreshold: number;
       currentStock: number;
+      rackNumber?: string;
     }) => {
       setProductEdit(data.id, {
         name: data.name,
         categoryId: data.categoryId,
         unit: data.unit,
         lowStockThreshold: data.lowStockThreshold,
+        rackNumber: data.rackNumber,
       });
       setStockOverride(data.id, data.currentStock);
+      if (data.rackNumber !== undefined) {
+        setRackNumber(data.id, data.rackNumber);
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["products"] }),
   });
@@ -172,8 +185,12 @@ export function useStaff() {
 export function useAddStaff() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { name: string; role: string }) => {
-      return lsAddStaff(data.name, data.role);
+    mutationFn: async (data: {
+      name: string;
+      role: string;
+      mobile?: string;
+    }) => {
+      return lsAddStaff(data.name, data.role, data.mobile);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["staff"] }),
   });
@@ -182,8 +199,13 @@ export function useAddStaff() {
 export function useUpdateStaff() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (data: { id: number; name: string; role: string }) => {
-      lsUpdateStaff(data.id, data.name, data.role);
+    mutationFn: async (data: {
+      id: number;
+      name: string;
+      role: string;
+      mobile?: string;
+    }) => {
+      lsUpdateStaff(data.id, data.name, data.role, data.mobile);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["staff"] }),
   });

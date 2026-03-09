@@ -1,14 +1,21 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+
 import {
   Table,
   TableBody,
@@ -17,7 +24,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CheckCircle2, ClipboardList, Search } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronsUpDown,
+  ClipboardList,
+  Search,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -54,6 +66,10 @@ export function UsageEntry() {
   });
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [productPopoverOpen, setProductPopoverOpen] = useState(false);
+  const [productSearch, setProductSearch] = useState("");
+  const [staffPopoverOpen, setStaffPopoverOpen] = useState(false);
+  const [staffSearch, setStaffSearch] = useState("");
 
   const deletedIds = useMemo(() => {
     try {
@@ -72,9 +88,30 @@ export function UsageEntry() {
     [products, deletedIds],
   );
 
+  const filteredProducts = useMemo(() => {
+    if (!productSearch.trim()) return activeProducts;
+    return activeProducts.filter((p) =>
+      p.name.toLowerCase().includes(productSearch.toLowerCase()),
+    );
+  }, [activeProducts, productSearch]);
+
   const selectedProduct = useMemo(
     () => activeProducts.find((p) => String(p.id) === form.productId),
     [activeProducts, form.productId],
+  );
+
+  const filteredStaff = useMemo(() => {
+    if (!staffSearch.trim()) return staffList;
+    return staffList.filter(
+      (s) =>
+        s.name.toLowerCase().includes(staffSearch.toLowerCase()) ||
+        s.role.toLowerCase().includes(staffSearch.toLowerCase()),
+    );
+  }, [staffList, staffSearch]);
+
+  const selectedStaff = useMemo(
+    () => staffList.find((s) => String(s.id) === form.staffId),
+    [staffList, form.staffId],
   );
 
   const categoryMap = useMemo(
@@ -161,6 +198,7 @@ export function UsageEntry() {
         clientName: "",
         time: getCurrentTime(),
       }));
+      setProductSearch("");
     } catch {
       toast.error("Failed to record usage");
     }
@@ -216,29 +254,75 @@ export function UsageEntry() {
                 />
               </div>
 
-              {/* Product */}
+              {/* Product with search */}
               <div className="space-y-1.5 col-span-2">
                 <Label>Product</Label>
-                <Select
-                  value={form.productId}
-                  onValueChange={(v) =>
-                    setForm((f) => ({ ...f, productId: v }))
-                  }
+                <Popover
+                  open={productPopoverOpen}
+                  onOpenChange={setProductPopoverOpen}
                 >
-                  <SelectTrigger data-ocid="usage.product.select">
-                    <SelectValue placeholder="Select a product" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {activeProducts.map((p) => (
-                      <SelectItem key={p.id} value={String(p.id)}>
-                        <span>{p.name}</span>
-                        <span className="ml-2 text-muted-foreground text-xs">
-                          (Stock: {p.currentStock} {p.unit})
+                  <PopoverTrigger asChild>
+                    <Button
+                      data-ocid="usage.product.select"
+                      variant="outline"
+                      aria-expanded={productPopoverOpen}
+                      className="w-full justify-between font-normal"
+                    >
+                      {selectedProduct ? (
+                        <span>
+                          {selectedProduct.name}{" "}
+                          <span className="text-muted-foreground text-xs">
+                            (Stock: {selectedProduct.currentStock}{" "}
+                            {selectedProduct.unit})
+                          </span>
                         </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                      ) : (
+                        <span className="text-muted-foreground">
+                          Select a product
+                        </span>
+                      )}
+                      <ChevronsUpDown
+                        size={14}
+                        className="ml-2 opacity-50 flex-shrink-0"
+                      />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    className="w-[--radix-popover-trigger-width] p-0"
+                    align="start"
+                  >
+                    <Command shouldFilter={false}>
+                      <CommandInput
+                        placeholder="Search product..."
+                        value={productSearch}
+                        onValueChange={setProductSearch}
+                        data-ocid="usage.product_search.input"
+                      />
+                      <CommandList>
+                        <CommandEmpty>No product found</CommandEmpty>
+                        <CommandGroup>
+                          {filteredProducts.map((p) => (
+                            <CommandItem
+                              key={p.id}
+                              value={String(p.id)}
+                              onSelect={(val) => {
+                                setForm((f) => ({ ...f, productId: val }));
+                                setProductSearch("");
+                                setStaffSearch("");
+                                setProductPopoverOpen(false);
+                              }}
+                            >
+                              <span>{p.name}</span>
+                              <span className="ml-2 text-muted-foreground text-xs">
+                                (Stock: {p.currentStock} {p.unit})
+                              </span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               {/* Auto-filled Category */}
@@ -259,21 +343,70 @@ export function UsageEntry() {
               {/* Staff */}
               <div className="space-y-1.5">
                 <Label>Staff Member</Label>
-                <Select
-                  value={form.staffId}
-                  onValueChange={(v) => setForm((f) => ({ ...f, staffId: v }))}
+                <Popover
+                  open={staffPopoverOpen}
+                  onOpenChange={setStaffPopoverOpen}
                 >
-                  <SelectTrigger data-ocid="usage.staff.select">
-                    <SelectValue placeholder="Select staff" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {staffList.map((s) => (
-                      <SelectItem key={s.id} value={String(s.id)}>
-                        {s.name} — {s.role}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <PopoverTrigger asChild>
+                    <Button
+                      data-ocid="usage.staff.select"
+                      variant="outline"
+                      aria-expanded={staffPopoverOpen}
+                      className="w-full justify-between font-normal"
+                    >
+                      {selectedStaff ? (
+                        <span>
+                          {selectedStaff.name}{" "}
+                          <span className="text-muted-foreground text-xs">
+                            — {selectedStaff.role}
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">
+                          Select staff
+                        </span>
+                      )}
+                      <ChevronsUpDown
+                        size={14}
+                        className="ml-2 opacity-50 flex-shrink-0"
+                      />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    className="w-[--radix-popover-trigger-width] p-0"
+                    align="start"
+                  >
+                    <Command shouldFilter={false}>
+                      <CommandInput
+                        placeholder="Search staff..."
+                        value={staffSearch}
+                        onValueChange={setStaffSearch}
+                        data-ocid="usage.staff_search.input"
+                      />
+                      <CommandList>
+                        <CommandEmpty>No staff found</CommandEmpty>
+                        <CommandGroup>
+                          {filteredStaff.map((s) => (
+                            <CommandItem
+                              key={s.id}
+                              value={String(s.id)}
+                              onSelect={(val) => {
+                                setForm((f) => ({ ...f, staffId: val }));
+                                setStaffSearch("");
+                                setStaffPopoverOpen(false);
+                              }}
+                            >
+                              <span>{s.name}</span>
+                              <span className="ml-2 text-muted-foreground text-xs">
+                                — {s.role}
+                              </span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               {/* Quantity */}

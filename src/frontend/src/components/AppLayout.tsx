@@ -1,5 +1,7 @@
 import { cn } from "@/lib/utils";
 import {
+  BarChart2,
+  CalendarCheck,
   ClipboardList,
   History,
   LayoutDashboard,
@@ -7,15 +9,22 @@ import {
   Scissors,
   Tag,
   Users,
+  Wallet,
+  Wrench,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 type Route =
   | "/"
   | "/categories"
   | "/products"
   | "/staff"
+  | "/attendance"
+  | "/equipment"
   | "/usage"
-  | "/usage-history";
+  | "/usage-history"
+  | "/charts"
+  | "/cash-ledger";
 
 interface NavItem {
   to: Route;
@@ -30,6 +39,24 @@ const navItems: NavItem[] = [
     label: "Dashboard",
     icon: <LayoutDashboard size={18} />,
     ocid: "sidebar.dashboard_link",
+  },
+  {
+    to: "/usage",
+    label: "Usage Entry",
+    icon: <ClipboardList size={18} />,
+    ocid: "sidebar.usage_link",
+  },
+  {
+    to: "/usage-history",
+    label: "Usage History",
+    icon: <History size={18} />,
+    ocid: "sidebar.usage_history_link",
+  },
+  {
+    to: "/charts",
+    label: "Charts",
+    icon: <BarChart2 size={18} />,
+    ocid: "sidebar.charts_link",
   },
   {
     to: "/categories",
@@ -50,23 +77,63 @@ const navItems: NavItem[] = [
     ocid: "sidebar.staff_link",
   },
   {
-    to: "/usage",
-    label: "Usage Entry",
-    icon: <ClipboardList size={18} />,
-    ocid: "sidebar.usage_link",
+    to: "/attendance",
+    label: "Attendance",
+    icon: <CalendarCheck size={18} />,
+    ocid: "sidebar.attendance_link",
   },
   {
-    to: "/usage-history",
-    label: "Usage History",
-    icon: <History size={18} />,
-    ocid: "sidebar.usage_history_link",
+    to: "/equipment",
+    label: "Equipment",
+    icon: <Wrench size={18} />,
+    ocid: "sidebar.equipment_link",
+  },
+  {
+    to: "/cash-ledger",
+    label: "Cash Ledger",
+    icon: <Wallet size={18} />,
+    ocid: "sidebar.cash_ledger_link",
   },
 ];
 
 interface AppLayoutProps {
   children: React.ReactNode;
-  currentRoute: Route;
+  currentRoute: string;
   navigate: (to: Route) => void;
+}
+
+function LiveClock() {
+  const [timeStr, setTimeStr] = useState(() => {
+    const now = new Date();
+    return now.toLocaleTimeString("en-IN", { hour12: false });
+  });
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setTimeStr(new Date().toLocaleTimeString("en-IN", { hour12: false }));
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const dateStr = new Date().toLocaleDateString("en-IN", {
+    weekday: "long",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+
+  return (
+    <div
+      data-ocid="sidebar.clock.panel"
+      className="mx-3 mb-3 rounded-lg px-3 py-3 text-center"
+      style={{ backgroundColor: "#1a1a1a" }}
+    >
+      <p className="font-mono text-xl font-bold tracking-widest text-white leading-none">
+        {timeStr}
+      </p>
+      <p className="text-xs text-white/50 mt-1.5 leading-tight">{dateStr}</p>
+    </div>
+  );
 }
 
 export function AppLayout({
@@ -127,6 +194,9 @@ export function AppLayout({
             );
           })}
         </nav>
+
+        {/* Live Clock */}
+        <LiveClock />
 
         {/* Footer */}
         <div className="px-4 py-4 border-t" style={{ borderColor: "#222" }}>
