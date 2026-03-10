@@ -2,9 +2,11 @@ import type {
   AttendanceRecord,
   AttendanceStatus,
   CashEntry,
+  Category,
   EquipmentCheckout,
   EquipmentItem,
   HomeServiceSettlement,
+  Product,
   ProductEdits,
   Staff,
   StockOverrides,
@@ -12,6 +14,8 @@ import type {
 } from "../types";
 
 const KEYS = {
+  CATEGORIES: "ym_categories",
+  PRODUCTS: "ym_products",
   STAFF: "ym_staff",
   USAGE_RECORDS: "ym_usage_records",
   STOCK_OVERRIDES: "ym_stock_overrides",
@@ -23,6 +27,74 @@ const KEYS = {
   CASH_ENTRIES: "ym_cash_entries",
   HOME_SERVICE_SETTLEMENTS: "ym_home_service_settlements",
 } as const;
+
+// ── Categories ────────────────────────────────────────────────────────────────
+
+const DEFAULT_CATEGORIES: Category[] = [];
+
+export function getCategories(): Category[] {
+  const stored = safeGet<Category[] | null>(KEYS.CATEGORIES, null);
+  if (stored === null) {
+    // First time: return defaults but don't seed so user starts fresh
+    return DEFAULT_CATEGORIES;
+  }
+  return stored;
+}
+
+export function saveCategories(cats: Category[]): void {
+  safeSet(KEYS.CATEGORIES, cats);
+}
+
+export function addCategory(name: string): Category {
+  const cats = getCategories();
+  const next: Category = {
+    id: cats.length > 0 ? Math.max(...cats.map((c) => c.id)) + 1 : 1,
+    name,
+  };
+  saveCategories([...cats, next]);
+  return next;
+}
+
+export function deleteCategory(id: number): void {
+  saveCategories(getCategories().filter((c) => c.id !== id));
+}
+
+// ── Products ──────────────────────────────────────────────────────────────────
+
+export function getProducts(): Product[] {
+  return safeGet<Product[]>(KEYS.PRODUCTS, []);
+}
+
+export function saveProducts(products: Product[]): void {
+  safeSet(KEYS.PRODUCTS, products);
+}
+
+export function addProduct(
+  data: Omit<Product, "id" | "brand" | "currentStock">,
+): Product {
+  const products = getProducts();
+  const next: Product = {
+    id: products.length > 0 ? Math.max(...products.map((p) => p.id)) + 1 : 1,
+    brand: "Yes Madam",
+    currentStock: data.openingStock,
+    ...data,
+  };
+  saveProducts([...products, next]);
+  return next;
+}
+
+export function updateProduct(
+  id: number,
+  updates: Partial<Omit<Product, "id" | "brand">>,
+): void {
+  saveProducts(
+    getProducts().map((p) => (p.id === id ? { ...p, ...updates } : p)),
+  );
+}
+
+export function deleteProduct(id: number): void {
+  saveProducts(getProducts().filter((p) => p.id !== id));
+}
 
 function safeGet<T>(key: string, fallback: T): T {
   try {
@@ -357,4 +429,8 @@ export function getHomeServiceSettlementsForDate(
   date: string,
 ): HomeServiceSettlement[] {
   return getHomeServiceSettlements().filter((s) => s.date === date);
+}
+
+export function deleteUsageRecord(id: number): void {
+  saveUsageRecords(getUsageRecords().filter((r) => r.id !== id));
 }

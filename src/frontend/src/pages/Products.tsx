@@ -582,20 +582,6 @@ export function Products() {
   } | null>(null);
   const [pasteImportOpen, setPasteImportOpen] = useState(false);
 
-  // Filter out deleted products
-  // biome-ignore lint/correctness/useExhaustiveDependencies: depends on products to refresh
-  const deletedIds = useMemo(() => {
-    try {
-      return new Set(
-        JSON.parse(
-          localStorage.getItem("ym_deleted_products") || "[]",
-        ) as number[],
-      );
-    } catch {
-      return new Set<number>();
-    }
-  }, [products]);
-
   const categoryMap = useMemo(
     () => Object.fromEntries(categories.map((c) => [c.id, c.name])),
     [categories],
@@ -603,7 +589,6 @@ export function Products() {
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
-      if (deletedIds.has(p.id)) return false;
       const q = search.toLowerCase();
       const matchSearch = search
         ? p.name.toLowerCase().includes(q) ||
@@ -615,7 +600,7 @@ export function Products() {
           : p.categoryId === Number(filterCategory);
       return matchSearch && matchCat;
     });
-  }, [products, search, filterCategory, deletedIds]);
+  }, [products, search, filterCategory]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);

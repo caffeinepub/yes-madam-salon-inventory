@@ -24,10 +24,13 @@ import {
   FilterX,
   History,
   Search,
+  Trash2,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   useCategories,
+  useDeleteUsageRecord,
   useProducts,
   useStaff,
   useUsageRecords,
@@ -40,6 +43,7 @@ export function UsageHistory() {
   const { data: products = [] } = useProducts();
   const { data: categories = [] } = useCategories();
   const { data: staffList = [] } = useStaff();
+  const deleteMutation = useDeleteUsageRecord();
 
   const [page, setPage] = useState(1);
   const [filterProduct, setFilterProduct] = useState("all");
@@ -170,6 +174,19 @@ export function UsageHistory() {
     dateFrom ||
     dateTo ||
     search.trim();
+
+  const handleDeleteEntry = async (id: number, ocidIdx: number) => {
+    const confirmed = window.confirm(
+      "Kya aap yeh entry delete karna chahte hain?",
+    );
+    if (!confirmed) return;
+    try {
+      await deleteMutation.mutateAsync(id);
+      toast.success(`Entry #${ocidIdx} delete ho gayi`);
+    } catch {
+      toast.error("Entry delete karne mein problem aai");
+    }
+  };
 
   return (
     <div className="p-8">
@@ -328,12 +345,13 @@ export function UsageHistory() {
               <TableHead className="text-xs">Staff</TableHead>
               <TableHead className="text-xs text-right">Qty</TableHead>
               <TableHead className="text-xs">Client</TableHead>
+              <TableHead className="text-xs text-center w-16">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginated.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7}>
+                <TableCell colSpan={8}>
                   <div
                     data-ocid="usage_history.empty_state"
                     className="text-center py-10 text-muted-foreground text-sm"
@@ -371,6 +389,18 @@ export function UsageHistory() {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {record.clientName ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <button
+                        type="button"
+                        data-ocid={`usage_history.delete_button.${ocidIdx}`}
+                        onClick={() => handleDeleteEntry(record.id, ocidIdx)}
+                        disabled={deleteMutation.isPending}
+                        title="Is entry ko delete karo"
+                        className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </TableCell>
                   </TableRow>
                 );

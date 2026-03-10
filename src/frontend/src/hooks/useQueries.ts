@@ -1,36 +1,28 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createActorWithConfig } from "../config";
 import {
-  deleteProductEdit,
-  getProductEdits,
-  getRackNumbers,
+  getCategories,
+  getProducts,
   getStaff,
-  getStockOverrides,
   getUsageRecords,
-  initStockOverride,
+  addCategory as lsAddCategory,
+  addProduct as lsAddProduct,
   addStaff as lsAddStaff,
   addUsageRecord as lsAddUsageRecord,
+  deleteCategory as lsDeleteCategory,
+  deleteProduct as lsDeleteProduct,
   deleteStaff as lsDeleteStaff,
+  deleteUsageRecord as lsDeleteUsageRecord,
+  updateProduct as lsUpdateProduct,
   updateStaff as lsUpdateStaff,
-  setProductEdit,
-  setRackNumber,
-  setStockOverride,
 } from "../lib/localStorage";
 import type { UsageRecord } from "../types";
-import { useActor } from "./useActor";
 
 // ── Categories ────────────────────────────────────────────────────────────────
 
 export function useCategories() {
-  const { actor, isFetching } = useActor();
   return useQuery({
     queryKey: ["categories"],
-    queryFn: async () => {
-      if (!actor) return [];
-      const cats = await actor.getCategories();
-      return cats.map((c) => ({ id: Number(c.id), name: c.name }));
-    },
-    enabled: !!actor && !isFetching,
+    queryFn: () => getCategories(),
   });
 }
 
@@ -38,9 +30,7 @@ export function useAddCategory() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (name: string) => {
-      const actor = await createActorWithConfig();
-      const cat = await actor.addCategory(name);
-      return { id: Number(cat.id), name: cat.name };
+      return lsAddCategory(name);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
   });
@@ -50,8 +40,7 @@ export function useDeleteCategory() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: number) => {
-      const actor = await createActorWithConfig();
-      return actor.deleteCategory(BigInt(id));
+      lsDeleteCategory(id);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
   });
@@ -60,41 +49,9 @@ export function useDeleteCategory() {
 // ── Products ──────────────────────────────────────────────────────────────────
 
 export function useProducts() {
-  const { actor, isFetching } = useActor();
   return useQuery({
     queryKey: ["products"],
-    queryFn: async () => {
-      if (!actor) return [];
-      const products = await actor.getProducts();
-      const overrides = getStockOverrides();
-      const edits = getProductEdits();
-      const rackNumbers = getRackNumbers();
-      const deleted = new Set<number>(
-        JSON.parse(localStorage.getItem("ym_deleted_products") || "[]"),
-      );
-      return products
-        .filter((p) => !deleted.has(Number(p.id)))
-        .map((p) => {
-          const id = Number(p.id);
-          const edit = edits[id];
-          return {
-            id,
-            name: edit?.name ?? p.name,
-            brand: p.brand,
-            categoryId: edit?.categoryId ?? Number(p.categoryId),
-            openingStock: Number(p.openingStock),
-            currentStock:
-              overrides[id] !== undefined
-                ? overrides[id]
-                : Number(p.currentStock),
-            unit: edit?.unit ?? p.unit,
-            lowStockThreshold:
-              edit?.lowStockThreshold ?? Number(p.lowStockThreshold),
-            rackNumber: rackNumbers[id] ?? edit?.rackNumber ?? "",
-          };
-        });
-    },
-    enabled: !!actor && !isFetching,
+    queryFn: () => getProducts(),
   });
 }
 
@@ -109,20 +66,7 @@ export function useAddProduct() {
       lowStockThreshold: number;
       rackNumber?: string;
     }) => {
-      const actor = await createActorWithConfig();
-      const p = await actor.addProduct(
-        data.name,
-        BigInt(data.categoryId),
-        BigInt(data.openingStock),
-        data.unit,
-        BigInt(data.lowStockThreshold),
-      );
-      const id = Number(p.id);
-      initStockOverride(id, Number(p.openingStock));
-      if (data.rackNumber !== undefined) {
-        setRackNumber(id, data.rackNumber);
-      }
-      return p;
+      return lsAddProduct(data);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["products"] }),
   });
@@ -140,17 +84,14 @@ export function useUpdateProduct() {
       currentStock: number;
       rackNumber?: string;
     }) => {
-      setProductEdit(data.id, {
+      lsUpdateProduct(data.id, {
         name: data.name,
         categoryId: data.categoryId,
         unit: data.unit,
         lowStockThreshold: data.lowStockThreshold,
+        currentStock: data.currentStock,
         rackNumber: data.rackNumber,
       });
-      setStockOverride(data.id, data.currentStock);
-      if (data.rackNumber !== undefined) {
-        setRackNumber(data.id, data.rackNumber);
-      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["products"] }),
   });
@@ -160,14 +101,7 @@ export function useDeleteProduct() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: number) => {
-      deleteProductEdit(id);
-      const deleted = JSON.parse(
-        localStorage.getItem("ym_deleted_products") || "[]",
-      ) as number[];
-      if (!deleted.includes(id)) {
-        deleted.push(id);
-        localStorage.setItem("ym_deleted_products", JSON.stringify(deleted));
-      }
+      lsDeleteProduct(id);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["products"] }),
   });
@@ -235,6 +169,19 @@ export function useAddUsageRecord() {
   return useMutation({
     mutationFn: async (record: Omit<UsageRecord, "id">) => {
       return lsAddUsageRecord(record);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["usage_records"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+    },
+  });
+}
+
+export function useDeleteUsageRecord() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => {
+      lsDeleteUsageRecord(id);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["usage_records"] });

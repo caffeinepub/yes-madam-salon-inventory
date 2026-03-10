@@ -1,3 +1,20 @@
+export interface Category {
+  id: number;
+  name: string;
+}
+
+export interface Product {
+  id: number;
+  name: string;
+  brand: string;
+  categoryId: number;
+  openingStock: number;
+  currentStock: number;
+  unit: string;
+  lowStockThreshold: number;
+  rackNumber?: string;
+}
+
 export interface Staff {
   id: number;
   name: string;

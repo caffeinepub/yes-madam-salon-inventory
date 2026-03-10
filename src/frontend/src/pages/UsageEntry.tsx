@@ -29,12 +29,14 @@ import {
   ChevronsUpDown,
   ClipboardList,
   Search,
+  Trash2,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   useAddUsageRecord,
   useCategories,
+  useDeleteUsageRecord,
   useProducts,
   useStaff,
   useUsageRecords,
@@ -55,6 +57,7 @@ export function UsageEntry() {
   const { data: staffList = [] } = useStaff();
   const { data: usageRecords = [] } = useUsageRecords();
   const addMutation = useAddUsageRecord();
+  const deleteMutation = useDeleteUsageRecord();
 
   const [form, setForm] = useState({
     date: getTodayDate(),
@@ -136,7 +139,7 @@ export function UsageEntry() {
       return db - da;
     });
 
-    if (!searchQuery.trim()) return sorted.slice(0, 10);
+    if (!searchQuery.trim()) return sorted.slice(0, 20);
 
     const q = searchQuery.toLowerCase();
     return sorted.filter((r) => {
@@ -201,6 +204,19 @@ export function UsageEntry() {
       setProductSearch("");
     } catch {
       toast.error("Failed to record usage");
+    }
+  };
+
+  const handleDeleteEntry = async (id: number, index: number) => {
+    const confirmed = window.confirm(
+      "Kya aap yeh entry delete karna chahte hain?",
+    );
+    if (!confirmed) return;
+    try {
+      await deleteMutation.mutateAsync(id);
+      toast.success(`Entry #${index} delete ho gayi`);
+    } catch {
+      toast.error("Entry delete karne mein problem aai");
     }
   };
 
@@ -497,10 +513,10 @@ export function UsageEntry() {
               </div>
             ) : (
               <div className="divide-y divide-border">
-                {recentUsage.map((r) => (
+                {recentUsage.map((r, idx) => (
                   <div key={r.id} className="px-4 py-3">
                     <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium truncate">
                           {productMap[r.productId] ?? `Product #${r.productId}`}
                         </p>
@@ -513,9 +529,21 @@ export function UsageEntry() {
                           </p>
                         )}
                       </div>
-                      <span className="text-sm font-semibold text-primary flex-shrink-0">
-                        {r.quantity}
-                      </span>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <span className="text-sm font-semibold text-primary">
+                          {r.quantity}
+                        </span>
+                        <button
+                          type="button"
+                          data-ocid={`usage_entry.delete_button.${idx + 1}`}
+                          onClick={() => handleDeleteEntry(r.id, idx + 1)}
+                          disabled={deleteMutation.isPending}
+                          title="Delete this entry"
+                          className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
