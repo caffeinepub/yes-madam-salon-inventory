@@ -10,7 +10,41 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
+export interface AttendanceEntry {
+  'id' : bigint,
+  'status' : string,
+  'staffId' : bigint,
+  'date' : string,
+}
+export interface CashEntry {
+  'id' : bigint,
+  'entryType' : string,
+  'date' : string,
+  'description' : string,
+  'recipientStaffId' : bigint,
+  'notes' : string,
+  'amount' : bigint,
+}
 export interface Category { 'id' : bigint, 'name' : string }
+export interface EquipmentCheckout {
+  'id' : bigint,
+  'staffId' : bigint,
+  'date' : string,
+  'takenAt' : string,
+  'equipmentId' : bigint,
+  'returnedAt' : string,
+}
+export interface EquipmentItem { 'id' : bigint, 'name' : string }
+export interface HomeServiceSettlement {
+  'id' : bigint,
+  'staffId' : bigint,
+  'clientName' : string,
+  'clientPaid' : bigint,
+  'date' : string,
+  'serviceAmount' : bigint,
+  'notes' : string,
+  'travelExpense' : bigint,
+}
 export interface Product {
   'id' : bigint,
   'categoryId' : bigint,
@@ -19,9 +53,15 @@ export interface Product {
   'unit' : string,
   'brand' : string,
   'currentStock' : bigint,
+  'rackNumber' : string,
   'openingStock' : bigint,
 }
-export interface Staff { 'id' : bigint, 'name' : string, 'role' : string }
+export interface Staff {
+  'id' : bigint,
+  'name' : string,
+  'role' : string,
+  'mobile' : string,
+}
 export interface UsageRecord {
   'id' : bigint,
   'categoryId' : bigint,
@@ -33,30 +73,54 @@ export interface UsageRecord {
   'quantity' : bigint,
 }
 export interface _SERVICE {
+  'addCashEntry' : ActorMethod<
+    [string, string, bigint, string, bigint, string],
+    undefined
+  >,
   'addCategory' : ActorMethod<[string], Category>,
-  'addProduct' : ActorMethod<[string, bigint, bigint, string, bigint], Product>,
-  'addStaff' : ActorMethod<[string, string], Staff>,
+  'addEquipmentCheckout' : ActorMethod<
+    [bigint, bigint, string, string],
+    undefined
+  >,
+  'addEquipmentItem' : ActorMethod<[string], EquipmentItem>,
+  'addHomeServiceSettlement' : ActorMethod<
+    [string, bigint, string, bigint, bigint, bigint, string],
+    undefined
+  >,
+  'addProduct' : ActorMethod<
+    [string, bigint, bigint, string, bigint, string],
+    Product
+  >,
+  'addStaff' : ActorMethod<[string, string, string], Staff>,
   'addUsageRecord' : ActorMethod<
     [string, bigint, bigint, bigint, bigint, string, string],
-    UsageRecord
+    undefined
   >,
-  'deleteCategory' : ActorMethod<[bigint], boolean>,
-  'deleteProduct' : ActorMethod<[bigint], boolean>,
-  'deleteStaff' : ActorMethod<[bigint], boolean>,
+  'clearAttendance' : ActorMethod<[string, bigint], undefined>,
+  'deleteCashEntry' : ActorMethod<[bigint], undefined>,
+  'deleteCategory' : ActorMethod<[bigint], undefined>,
+  'deleteEquipmentItem' : ActorMethod<[bigint], undefined>,
+  'deleteHomeServiceSettlement' : ActorMethod<[bigint], undefined>,
+  'deleteProduct' : ActorMethod<[bigint], undefined>,
+  'deleteStaff' : ActorMethod<[bigint], undefined>,
+  'deleteUsageRecord' : ActorMethod<[bigint], undefined>,
+  'getAttendanceEntries' : ActorMethod<[], Array<AttendanceEntry>>,
+  'getCashEntries' : ActorMethod<[], Array<CashEntry>>,
   'getCategories' : ActorMethod<[], Array<Category>>,
-  'getProductById' : ActorMethod<[bigint], [] | [Product]>,
+  'getEquipmentCheckouts' : ActorMethod<[], Array<EquipmentCheckout>>,
+  'getEquipmentItems' : ActorMethod<[], Array<EquipmentItem>>,
+  'getHomeServiceSettlements' : ActorMethod<[], Array<HomeServiceSettlement>>,
   'getProducts' : ActorMethod<[], Array<Product>>,
   'getStaff' : ActorMethod<[], Array<Staff>>,
   'getUsageRecords' : ActorMethod<[], Array<UsageRecord>>,
-  'getUsageStats' : ActorMethod<
-    [],
-    { 'totalUsageAllTime' : bigint, 'totalUsageToday' : bigint }
-  >,
+  'markAllPresent' : ActorMethod<[string, Array<bigint>], undefined>,
+  'returnEquipmentCheckout' : ActorMethod<[bigint, string], undefined>,
+  'setAttendance' : ActorMethod<[string, bigint, string], undefined>,
   'updateProduct' : ActorMethod<
-    [bigint, string, bigint, bigint, string, bigint],
-    [] | [Product]
+    [bigint, string, bigint, bigint, string, bigint, string],
+    undefined
   >,
-  'updateStaff' : ActorMethod<[bigint, string, string], [] | [Staff]>,
+  'updateStaff' : ActorMethod<[bigint, string, string, string], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

@@ -1,13 +1,13 @@
 import Array "mo:core/Array";
-import Map "mo:core/Map";
 import Nat "mo:core/Nat";
-import Runtime "mo:core/Runtime";
-
+import VarArray "mo:core/VarArray";
 import Iter "mo:core/Iter";
+import Migration "migration";
 
-// Ensure migration is run during upgrade
-
+(with migration = Migration.run)
 actor {
+  // Types
+
   type Category = {
     id : Nat;
     name : Text;
@@ -16,18 +16,20 @@ actor {
   type Product = {
     id : Nat;
     name : Text;
+    brand : Text;
     categoryId : Nat;
     openingStock : Nat;
     currentStock : Nat;
     unit : Text;
     lowStockThreshold : Nat;
-    brand : Text;
+    rackNumber : Text;
   };
 
   type Staff = {
     id : Nat;
     name : Text;
     role : Text;
+    mobile : Text;
   };
 
   type UsageRecord = {
@@ -41,100 +43,125 @@ actor {
     clientName : Text;
   };
 
-  var nextCategoryId = 8; // Start after 7 pre-seeded categories
-  var nextProductId = 1;
-  var nextStaffId = 1;
-  var nextUsageId = 1;
-
-  let categories = Map.empty<Nat, Category>();
-  let products = Map.empty<Nat, Product>();
-  let staffMembers = Map.empty<Nat, Staff>();
-  let usageRecords = Map.empty<Nat, UsageRecord>();
-
-  // Pre-seed categories (only if not already present)
-  let initialCategories = [
-    (1, "Bleach"),
-    (2, "Meni Pedi"),
-    (3, "Cleanup"),
-    (4, "Facial"),
-    (5, "Wax"),
-    (6, "Oil"),
-    (7, "Hair Spa"),
-  ];
-
-  let allCategoriesPresent = initialCategories.foldLeft(
-    true,
-    func(acc, (id, _)) {
-      acc and categories.containsKey(id);
-    },
-  );
-
-  if (not allCategoriesPresent) {
-    for ((id, name) in initialCategories.values()) {
-      categories.add(id, { id; name });
-    };
+  type EquipmentItem = {
+    id : Nat;
+    name : Text;
   };
 
-  // Category APIs
-  public shared ({ caller }) func addCategory(name : Text) : async Category {
-    if (name.size() == 0) { Runtime.trap("Category name cannot be empty") };
+  type EquipmentCheckout = {
+    id : Nat;
+    staffId : Nat;
+    equipmentId : Nat;
+    date : Text;
+    takenAt : Text;
+    returnedAt : Text;
+  };
 
-    let newCategory : Category = {
+  type AttendanceEntry = {
+    id : Nat;
+    date : Text;
+    staffId : Nat;
+    status : Text;
+  };
+
+  type CashEntry = {
+    id : Nat;
+    date : Text;
+    entryType : Text;
+    amount : Nat;
+    description : Text;
+    recipientStaffId : Nat;
+    notes : Text;
+  };
+
+  type HomeServiceSettlement = {
+    id : Nat;
+    date : Text;
+    staffId : Nat;
+    clientName : Text;
+    serviceAmount : Nat;
+    clientPaid : Nat;
+    travelExpense : Nat;
+    notes : Text;
+  };
+
+  // Stable storage
+
+  stable var categories : [Category] = [];
+  stable var products : [Product] = [];
+  stable var staff : [Staff] = [];
+  stable var usageRecords : [UsageRecord] = [];
+  stable var equipmentItems : [EquipmentItem] = [];
+  stable var equipmentCheckouts : [EquipmentCheckout] = [];
+  stable var attendanceEntries : [AttendanceEntry] = [];
+  stable var cashEntries : [CashEntry] = [];
+  stable var homeServiceSettlements : [HomeServiceSettlement] = [];
+
+  stable var nextCategoryId : Nat = 1;
+  stable var nextProductId : Nat = 1;
+  stable var nextStaffId : Nat = 1;
+  stable var nextUsageId : Nat = 1;
+  stable var nextEquipmentItemId : Nat = 1;
+  stable var nextEquipmentCheckoutId : Nat = 1;
+  stable var nextAttendanceId : Nat = 1;
+  stable var nextCashEntryId : Nat = 1;
+  stable var nextHomeServiceSettlementId : Nat = 1;
+
+  // Category APIs
+
+  public query ({ caller }) func getCategories() : async [Category] {
+    categories;
+  };
+
+  public shared ({ caller }) func addCategory(name : Text) : async Category {
+    let category : Category = {
       id = nextCategoryId;
       name;
     };
 
-    categories.add(nextCategoryId, newCategory);
+    let newCategories = categories.concat([category]);
+    categories := newCategories;
     nextCategoryId += 1;
-    newCategory;
+
+    category;
   };
 
-  public query ({ caller }) func getCategories() : async [Category] {
-    categories.values().toArray();
-  };
-
-  public shared ({ caller }) func deleteCategory(id : Nat) : async Bool {
-    if (id <= 7) { Runtime.trap("Cannot delete default categories") };
-
-    let categoryExists = categories.containsKey(id);
-    categories.remove(id);
-    categoryExists;
+  public shared ({ caller }) func deleteCategory(id : Nat) : async () {
+    let newCategories = categories.filter(func(c) { c.id != id });
+    categories := newCategories;
   };
 
   // Product APIs
+
+  public query ({ caller }) func getProducts() : async [Product] {
+    products;
+  };
+
   public shared ({ caller }) func addProduct(
     name : Text,
     categoryId : Nat,
     openingStock : Nat,
     unit : Text,
     lowStockThreshold : Nat,
+    rackNumber : Text,
   ) : async Product {
-    if (categories.get(categoryId) == null) {
-      Runtime.trap("Category does not exist");
-    };
-
-    let newProduct : Product = {
+    let product : Product = {
       id = nextProductId;
       name;
+      brand = "Yes Madam";
       categoryId;
       openingStock;
       currentStock = openingStock;
       unit;
       lowStockThreshold;
-      brand = "Yes Madam";
+      rackNumber;
     };
 
-    products.add(nextProductId, newProduct);
+    let newProducts = products.concat([product]);
+    products := newProducts;
     nextProductId += 1;
-    newProduct;
-  };
 
-  public query ({ caller }) func getProducts() : async [Product] {
-    products.values().toArray();
-  };
-
-  public query ({ caller }) func getProductById(id : Nat) : async ?Product {
-    products.get(id);
+    product;
   };
 
   public shared ({ caller }) func updateProduct(
@@ -144,71 +171,90 @@ actor {
     currentStock : Nat,
     unit : Text,
     lowStockThreshold : Nat,
-  ) : async ?Product {
-    switch (products.get(id)) {
-      case (null) { null };
-      case (?product) {
-        let updatedProduct : Product = {
-          id = product.id;
-          name;
-          categoryId;
-          openingStock = product.openingStock;
-          currentStock;
-          unit;
-          lowStockThreshold;
-          brand = "Yes Madam"; // keep brand
+    rackNumber : Text,
+  ) : async () {
+    let newProducts = products.map(
+      func(p) {
+        if (p.id == id) {
+          {
+            id;
+            name;
+            brand = p.brand;
+            categoryId;
+            openingStock = p.openingStock;
+            currentStock;
+            unit;
+            lowStockThreshold;
+            rackNumber;
+          };
+        } else {
+          p;
         };
-        products.add(id, updatedProduct);
-        ?updatedProduct;
-      };
-    };
+      }
+    );
+    products := newProducts;
   };
 
-  public shared ({ caller }) func deleteProduct(id : Nat) : async Bool {
-    let productExists = products.containsKey(id);
-    products.remove(id);
-    productExists;
+  public shared ({ caller }) func deleteProduct(id : Nat) : async () {
+    let newProducts = products.filter(func(p) { p.id != id });
+    products := newProducts;
   };
 
   // Staff APIs
-  public shared ({ caller }) func addStaff(name : Text, role : Text) : async Staff {
-    let newStaff : Staff = {
-      id = nextStaffId;
-      name;
-      role;
-    };
-
-    staffMembers.add(nextStaffId, newStaff);
-    nextStaffId += 1;
-    newStaff;
-  };
 
   public query ({ caller }) func getStaff() : async [Staff] {
-    staffMembers.values().toArray();
+    staff;
   };
 
-  public shared ({ caller }) func updateStaff(id : Nat, name : Text, role : Text) : async ?Staff {
-    switch (staffMembers.get(id)) {
-      case (null) { null };
-      case (?staff) {
-        let updatedStaff : Staff = {
-          id = staff.id;
-          name;
-          role;
-        };
-        staffMembers.add(id, updatedStaff);
-        ?updatedStaff;
-      };
+  public shared ({ caller }) func addStaff(name : Text, role : Text, mobile : Text) : async Staff {
+    let newStaffs = staff.concat([
+      {
+        id = nextStaffId;
+        name;
+        role;
+        mobile;
+      },
+    ]);
+    staff := newStaffs;
+    nextStaffId += 1;
+
+    {
+      id = nextStaffId - 1;
+      name;
+      role;
+      mobile;
     };
   };
 
-  public shared ({ caller }) func deleteStaff(id : Nat) : async Bool {
-    let staffExists = staffMembers.containsKey(id);
-    staffMembers.remove(id);
-    staffExists;
+  public shared ({ caller }) func updateStaff(id : Nat, name : Text, role : Text, mobile : Text) : async () {
+    let newStaffs = staff.map(
+      func(s) {
+        if (s.id == id) {
+          {
+            id;
+            name;
+            role;
+            mobile;
+          };
+        } else {
+          s;
+        };
+      }
+    );
+    staff := newStaffs;
+  };
+
+  public shared ({ caller }) func deleteStaff(id : Nat) : async () {
+    let newStaffs = staff.filter(func(s) { s.id != id });
+    staff := newStaffs;
   };
 
   // UsageRecord APIs
+
+  public query ({ caller }) func getUsageRecords() : async [UsageRecord] {
+    usageRecords;
+  };
+
   public shared ({ caller }) func addUsageRecord(
     date : Text,
     productId : Nat,
@@ -217,18 +263,8 @@ actor {
     quantity : Nat,
     time : Text,
     clientName : Text,
-  ) : async UsageRecord {
-    if (products.get(productId) == null) {
-      Runtime.trap("Product does not exist");
-    };
-    if (categories.get(categoryId) == null) {
-      Runtime.trap("Category does not exist");
-    };
-    if (staffMembers.get(staffId) == null) {
-      Runtime.trap("Staff member does not exist");
-    };
-
-    let newUsage : UsageRecord = {
+  ) : async () {
+    let usageRecord : UsageRecord = {
       id = nextUsageId;
       date;
       productId;
@@ -239,21 +275,180 @@ actor {
       clientName;
     };
 
-    usageRecords.add(nextUsageId, newUsage);
+    let newUsageRecords = usageRecords.concat([usageRecord]);
+    usageRecords := newUsageRecords;
     nextUsageId += 1;
-    newUsage;
   };
 
-  public query ({ caller }) func getUsageRecords() : async [UsageRecord] {
-    usageRecords.values().toArray();
+  public shared ({ caller }) func deleteUsageRecord(id : Nat) : async () {
+    let newUsageRecords = usageRecords.filter(func(u) { u.id != id });
+    usageRecords := newUsageRecords;
   };
 
-  public query ({ caller }) func getUsageStats() : async {
-    totalUsageToday : Nat;
-    totalUsageAllTime : Nat;
-  } {
-    let totalUsageAllTime = usageRecords.size();
-    // Not computing totalUsageToday as backend does not track current date
-    { totalUsageToday = 0; totalUsageAllTime };
+  // Equipment APIs
+
+  public query ({ caller }) func getEquipmentItems() : async [EquipmentItem] {
+    equipmentItems;
+  };
+
+  public shared ({ caller }) func addEquipmentItem(name : Text) : async EquipmentItem {
+    let equipmentItem : EquipmentItem = {
+      id = nextEquipmentItemId;
+      name;
+    };
+
+    let newEquipmentItems = equipmentItems.concat([equipmentItem]);
+    equipmentItems := newEquipmentItems;
+    nextEquipmentItemId += 1;
+
+    equipmentItem;
+  };
+
+  public shared ({ caller }) func deleteEquipmentItem(id : Nat) : async () {
+    let newEquipmentItems = equipmentItems.filter(func(e) { e.id != id });
+    equipmentItems := newEquipmentItems;
+  };
+
+  public query ({ caller }) func getEquipmentCheckouts() : async [EquipmentCheckout] {
+    equipmentCheckouts;
+  };
+
+  public shared ({ caller }) func addEquipmentCheckout(staffId : Nat, equipmentId : Nat, date : Text, takenAt : Text) : async () {
+    let checkout : EquipmentCheckout = {
+      id = nextEquipmentCheckoutId;
+      staffId;
+      equipmentId;
+      date;
+      takenAt;
+      returnedAt = "";
+    };
+
+    let newCheckouts = equipmentCheckouts.concat([checkout]);
+    equipmentCheckouts := newCheckouts;
+    nextEquipmentCheckoutId += 1;
+  };
+
+  public shared ({ caller }) func returnEquipmentCheckout(id : Nat, returnedAt : Text) : async () {
+    let newCheckouts = equipmentCheckouts.map(
+      func(e) {
+        if (e.id == id) {
+          {
+            id = e.id;
+            staffId = e.staffId;
+            equipmentId = e.equipmentId;
+            date = e.date;
+            takenAt = e.takenAt;
+            returnedAt;
+          };
+        } else {
+          e;
+        };
+      }
+    );
+    equipmentCheckouts := newCheckouts;
+  };
+
+  // Attendance APIs
+
+  public query ({ caller }) func getAttendanceEntries() : async [AttendanceEntry] {
+    attendanceEntries;
+  };
+
+  public shared ({ caller }) func setAttendance(date : Text, staffId : Nat, status : Text) : async () {
+    let attendance : AttendanceEntry = {
+      id = nextAttendanceId;
+      date;
+      staffId;
+      status;
+    };
+
+    let newEntries = attendanceEntries.concat([attendance]);
+    attendanceEntries := newEntries;
+    nextAttendanceId += 1;
+  };
+
+  public shared ({ caller }) func clearAttendance(date : Text, staffId : Nat) : async () {
+    let newEntries = attendanceEntries.filter(
+      func(a) {
+        a.date != date or a.staffId != staffId;
+      }
+    );
+    attendanceEntries := newEntries;
+  };
+
+  public shared ({ caller }) func markAllPresent(date : Text, staffIds : [Nat]) : async () {
+    for (staffId in staffIds.values()) {
+      await setAttendance(date, staffId, "present");
+    };
+  };
+
+  // Cash Entries APIs
+
+  public query ({ caller }) func getCashEntries() : async [CashEntry] {
+    cashEntries;
+  };
+
+  public shared ({ caller }) func addCashEntry(
+    date : Text,
+    entryType : Text,
+    amount : Nat,
+    description : Text,
+    recipientStaffId : Nat,
+    notes : Text,
+  ) : async () {
+    let cashEntry : CashEntry = {
+      id = nextCashEntryId;
+      date;
+      entryType;
+      amount;
+      description;
+      recipientStaffId;
+      notes;
+    };
+
+    let newCashEntries = cashEntries.concat([cashEntry]);
+    cashEntries := newCashEntries;
+    nextCashEntryId += 1;
+  };
+
+  public shared ({ caller }) func deleteCashEntry(id : Nat) : async () {
+    let newCashEntries = cashEntries.filter(func(c) { c.id != id });
+    cashEntries := newCashEntries;
+  };
+
+  // Home Service Settlements APIs
+
+  public query ({ caller }) func getHomeServiceSettlements() : async [HomeServiceSettlement] {
+    homeServiceSettlements;
+  };
+
+  public shared ({ caller }) func addHomeServiceSettlement(
+    date : Text,
+    staffId : Nat,
+    clientName : Text,
+    serviceAmount : Nat,
+    clientPaid : Nat,
+    travelExpense : Nat,
+    notes : Text,
+  ) : async () {
+    let settlement : HomeServiceSettlement = {
+      id = nextHomeServiceSettlementId;
+      date;
+      staffId;
+      clientName;
+      serviceAmount;
+      clientPaid;
+      travelExpense;
+      notes;
+    };
+
+    let newSettlements = homeServiceSettlements.concat([settlement]);
+    homeServiceSettlements := newSettlements;
+    nextHomeServiceSettlementId += 1;
+  };
+
+  public shared ({ caller }) func deleteHomeServiceSettlement(id : Nat) : async () {
+    let newSettlements = homeServiceSettlements.filter(func(h) { h.id != id });
+    homeServiceSettlements := newSettlements;
   };
 };

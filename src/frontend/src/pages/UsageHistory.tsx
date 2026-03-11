@@ -52,18 +52,6 @@ export function UsageHistory() {
   const [dateTo, setDateTo] = useState("");
   const [search, setSearch] = useState("");
 
-  const deletedIds = useMemo(() => {
-    try {
-      return new Set(
-        JSON.parse(
-          localStorage.getItem("ym_deleted_products") || "[]",
-        ) as number[],
-      );
-    } catch {
-      return new Set<number>();
-    }
-  }, []);
-
   const categoryMap = useMemo(
     () => Object.fromEntries(categories.map((c) => [c.id, c.name])),
     [categories],
@@ -79,10 +67,7 @@ export function UsageHistory() {
     [staffList],
   );
 
-  const activeProducts = useMemo(
-    () => products.filter((p) => !deletedIds.has(p.id)),
-    [products, deletedIds],
-  );
+  const activeProducts = products;
 
   const filtered = useMemo(() => {
     return [...usageRecords]

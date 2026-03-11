@@ -9,6 +9,7 @@
 import { IDL } from '@icp-sdk/core/candid';
 
 export const Category = IDL.Record({ 'id' : IDL.Nat, 'name' : IDL.Text });
+export const EquipmentItem = IDL.Record({ 'id' : IDL.Nat, 'name' : IDL.Text });
 export const Product = IDL.Record({
   'id' : IDL.Nat,
   'categoryId' : IDL.Nat,
@@ -17,12 +18,47 @@ export const Product = IDL.Record({
   'unit' : IDL.Text,
   'brand' : IDL.Text,
   'currentStock' : IDL.Nat,
+  'rackNumber' : IDL.Text,
   'openingStock' : IDL.Nat,
 });
 export const Staff = IDL.Record({
   'id' : IDL.Nat,
   'name' : IDL.Text,
   'role' : IDL.Text,
+  'mobile' : IDL.Text,
+});
+export const AttendanceEntry = IDL.Record({
+  'id' : IDL.Nat,
+  'status' : IDL.Text,
+  'staffId' : IDL.Nat,
+  'date' : IDL.Text,
+});
+export const CashEntry = IDL.Record({
+  'id' : IDL.Nat,
+  'entryType' : IDL.Text,
+  'date' : IDL.Text,
+  'description' : IDL.Text,
+  'recipientStaffId' : IDL.Nat,
+  'notes' : IDL.Text,
+  'amount' : IDL.Nat,
+});
+export const EquipmentCheckout = IDL.Record({
+  'id' : IDL.Nat,
+  'staffId' : IDL.Nat,
+  'date' : IDL.Text,
+  'takenAt' : IDL.Text,
+  'equipmentId' : IDL.Nat,
+  'returnedAt' : IDL.Text,
+});
+export const HomeServiceSettlement = IDL.Record({
+  'id' : IDL.Nat,
+  'staffId' : IDL.Nat,
+  'clientName' : IDL.Text,
+  'clientPaid' : IDL.Nat,
+  'date' : IDL.Text,
+  'serviceAmount' : IDL.Nat,
+  'notes' : IDL.Text,
+  'travelExpense' : IDL.Nat,
 });
 export const UsageRecord = IDL.Record({
   'id' : IDL.Nat,
@@ -36,48 +72,75 @@ export const UsageRecord = IDL.Record({
 });
 
 export const idlService = IDL.Service({
+  'addCashEntry' : IDL.Func(
+      [IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Nat, IDL.Text],
+      [],
+      [],
+    ),
   'addCategory' : IDL.Func([IDL.Text], [Category], []),
+  'addEquipmentCheckout' : IDL.Func(
+      [IDL.Nat, IDL.Nat, IDL.Text, IDL.Text],
+      [],
+      [],
+    ),
+  'addEquipmentItem' : IDL.Func([IDL.Text], [EquipmentItem], []),
+  'addHomeServiceSettlement' : IDL.Func(
+      [IDL.Text, IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Text],
+      [],
+      [],
+    ),
   'addProduct' : IDL.Func(
-      [IDL.Text, IDL.Nat, IDL.Nat, IDL.Text, IDL.Nat],
+      [IDL.Text, IDL.Nat, IDL.Nat, IDL.Text, IDL.Nat, IDL.Text],
       [Product],
       [],
     ),
-  'addStaff' : IDL.Func([IDL.Text, IDL.Text], [Staff], []),
+  'addStaff' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [Staff], []),
   'addUsageRecord' : IDL.Func(
       [IDL.Text, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Text, IDL.Text],
-      [UsageRecord],
+      [],
       [],
     ),
-  'deleteCategory' : IDL.Func([IDL.Nat], [IDL.Bool], []),
-  'deleteProduct' : IDL.Func([IDL.Nat], [IDL.Bool], []),
-  'deleteStaff' : IDL.Func([IDL.Nat], [IDL.Bool], []),
+  'clearAttendance' : IDL.Func([IDL.Text, IDL.Nat], [], []),
+  'deleteCashEntry' : IDL.Func([IDL.Nat], [], []),
+  'deleteCategory' : IDL.Func([IDL.Nat], [], []),
+  'deleteEquipmentItem' : IDL.Func([IDL.Nat], [], []),
+  'deleteHomeServiceSettlement' : IDL.Func([IDL.Nat], [], []),
+  'deleteProduct' : IDL.Func([IDL.Nat], [], []),
+  'deleteStaff' : IDL.Func([IDL.Nat], [], []),
+  'deleteUsageRecord' : IDL.Func([IDL.Nat], [], []),
+  'getAttendanceEntries' : IDL.Func([], [IDL.Vec(AttendanceEntry)], ['query']),
+  'getCashEntries' : IDL.Func([], [IDL.Vec(CashEntry)], ['query']),
   'getCategories' : IDL.Func([], [IDL.Vec(Category)], ['query']),
-  'getProductById' : IDL.Func([IDL.Nat], [IDL.Opt(Product)], ['query']),
+  'getEquipmentCheckouts' : IDL.Func(
+      [],
+      [IDL.Vec(EquipmentCheckout)],
+      ['query'],
+    ),
+  'getEquipmentItems' : IDL.Func([], [IDL.Vec(EquipmentItem)], ['query']),
+  'getHomeServiceSettlements' : IDL.Func(
+      [],
+      [IDL.Vec(HomeServiceSettlement)],
+      ['query'],
+    ),
   'getProducts' : IDL.Func([], [IDL.Vec(Product)], ['query']),
   'getStaff' : IDL.Func([], [IDL.Vec(Staff)], ['query']),
   'getUsageRecords' : IDL.Func([], [IDL.Vec(UsageRecord)], ['query']),
-  'getUsageStats' : IDL.Func(
-      [],
-      [
-        IDL.Record({
-          'totalUsageAllTime' : IDL.Nat,
-          'totalUsageToday' : IDL.Nat,
-        }),
-      ],
-      ['query'],
-    ),
+  'markAllPresent' : IDL.Func([IDL.Text, IDL.Vec(IDL.Nat)], [], []),
+  'returnEquipmentCheckout' : IDL.Func([IDL.Nat, IDL.Text], [], []),
+  'setAttendance' : IDL.Func([IDL.Text, IDL.Nat, IDL.Text], [], []),
   'updateProduct' : IDL.Func(
-      [IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat, IDL.Text, IDL.Nat],
-      [IDL.Opt(Product)],
+      [IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat, IDL.Text, IDL.Nat, IDL.Text],
+      [],
       [],
     ),
-  'updateStaff' : IDL.Func([IDL.Nat, IDL.Text, IDL.Text], [IDL.Opt(Staff)], []),
+  'updateStaff' : IDL.Func([IDL.Nat, IDL.Text, IDL.Text, IDL.Text], [], []),
 });
 
 export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
   const Category = IDL.Record({ 'id' : IDL.Nat, 'name' : IDL.Text });
+  const EquipmentItem = IDL.Record({ 'id' : IDL.Nat, 'name' : IDL.Text });
   const Product = IDL.Record({
     'id' : IDL.Nat,
     'categoryId' : IDL.Nat,
@@ -86,12 +149,47 @@ export const idlFactory = ({ IDL }) => {
     'unit' : IDL.Text,
     'brand' : IDL.Text,
     'currentStock' : IDL.Nat,
+    'rackNumber' : IDL.Text,
     'openingStock' : IDL.Nat,
   });
   const Staff = IDL.Record({
     'id' : IDL.Nat,
     'name' : IDL.Text,
     'role' : IDL.Text,
+    'mobile' : IDL.Text,
+  });
+  const AttendanceEntry = IDL.Record({
+    'id' : IDL.Nat,
+    'status' : IDL.Text,
+    'staffId' : IDL.Nat,
+    'date' : IDL.Text,
+  });
+  const CashEntry = IDL.Record({
+    'id' : IDL.Nat,
+    'entryType' : IDL.Text,
+    'date' : IDL.Text,
+    'description' : IDL.Text,
+    'recipientStaffId' : IDL.Nat,
+    'notes' : IDL.Text,
+    'amount' : IDL.Nat,
+  });
+  const EquipmentCheckout = IDL.Record({
+    'id' : IDL.Nat,
+    'staffId' : IDL.Nat,
+    'date' : IDL.Text,
+    'takenAt' : IDL.Text,
+    'equipmentId' : IDL.Nat,
+    'returnedAt' : IDL.Text,
+  });
+  const HomeServiceSettlement = IDL.Record({
+    'id' : IDL.Nat,
+    'staffId' : IDL.Nat,
+    'clientName' : IDL.Text,
+    'clientPaid' : IDL.Nat,
+    'date' : IDL.Text,
+    'serviceAmount' : IDL.Nat,
+    'notes' : IDL.Text,
+    'travelExpense' : IDL.Nat,
   });
   const UsageRecord = IDL.Record({
     'id' : IDL.Nat,
@@ -105,46 +203,72 @@ export const idlFactory = ({ IDL }) => {
   });
   
   return IDL.Service({
+    'addCashEntry' : IDL.Func(
+        [IDL.Text, IDL.Text, IDL.Nat, IDL.Text, IDL.Nat, IDL.Text],
+        [],
+        [],
+      ),
     'addCategory' : IDL.Func([IDL.Text], [Category], []),
+    'addEquipmentCheckout' : IDL.Func(
+        [IDL.Nat, IDL.Nat, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
+    'addEquipmentItem' : IDL.Func([IDL.Text], [EquipmentItem], []),
+    'addHomeServiceSettlement' : IDL.Func(
+        [IDL.Text, IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Text],
+        [],
+        [],
+      ),
     'addProduct' : IDL.Func(
-        [IDL.Text, IDL.Nat, IDL.Nat, IDL.Text, IDL.Nat],
+        [IDL.Text, IDL.Nat, IDL.Nat, IDL.Text, IDL.Nat, IDL.Text],
         [Product],
         [],
       ),
-    'addStaff' : IDL.Func([IDL.Text, IDL.Text], [Staff], []),
+    'addStaff' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [Staff], []),
     'addUsageRecord' : IDL.Func(
         [IDL.Text, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Nat, IDL.Text, IDL.Text],
-        [UsageRecord],
+        [],
         [],
       ),
-    'deleteCategory' : IDL.Func([IDL.Nat], [IDL.Bool], []),
-    'deleteProduct' : IDL.Func([IDL.Nat], [IDL.Bool], []),
-    'deleteStaff' : IDL.Func([IDL.Nat], [IDL.Bool], []),
+    'clearAttendance' : IDL.Func([IDL.Text, IDL.Nat], [], []),
+    'deleteCashEntry' : IDL.Func([IDL.Nat], [], []),
+    'deleteCategory' : IDL.Func([IDL.Nat], [], []),
+    'deleteEquipmentItem' : IDL.Func([IDL.Nat], [], []),
+    'deleteHomeServiceSettlement' : IDL.Func([IDL.Nat], [], []),
+    'deleteProduct' : IDL.Func([IDL.Nat], [], []),
+    'deleteStaff' : IDL.Func([IDL.Nat], [], []),
+    'deleteUsageRecord' : IDL.Func([IDL.Nat], [], []),
+    'getAttendanceEntries' : IDL.Func(
+        [],
+        [IDL.Vec(AttendanceEntry)],
+        ['query'],
+      ),
+    'getCashEntries' : IDL.Func([], [IDL.Vec(CashEntry)], ['query']),
     'getCategories' : IDL.Func([], [IDL.Vec(Category)], ['query']),
-    'getProductById' : IDL.Func([IDL.Nat], [IDL.Opt(Product)], ['query']),
+    'getEquipmentCheckouts' : IDL.Func(
+        [],
+        [IDL.Vec(EquipmentCheckout)],
+        ['query'],
+      ),
+    'getEquipmentItems' : IDL.Func([], [IDL.Vec(EquipmentItem)], ['query']),
+    'getHomeServiceSettlements' : IDL.Func(
+        [],
+        [IDL.Vec(HomeServiceSettlement)],
+        ['query'],
+      ),
     'getProducts' : IDL.Func([], [IDL.Vec(Product)], ['query']),
     'getStaff' : IDL.Func([], [IDL.Vec(Staff)], ['query']),
     'getUsageRecords' : IDL.Func([], [IDL.Vec(UsageRecord)], ['query']),
-    'getUsageStats' : IDL.Func(
-        [],
-        [
-          IDL.Record({
-            'totalUsageAllTime' : IDL.Nat,
-            'totalUsageToday' : IDL.Nat,
-          }),
-        ],
-        ['query'],
-      ),
+    'markAllPresent' : IDL.Func([IDL.Text, IDL.Vec(IDL.Nat)], [], []),
+    'returnEquipmentCheckout' : IDL.Func([IDL.Nat, IDL.Text], [], []),
+    'setAttendance' : IDL.Func([IDL.Text, IDL.Nat, IDL.Text], [], []),
     'updateProduct' : IDL.Func(
-        [IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat, IDL.Text, IDL.Nat],
-        [IDL.Opt(Product)],
+        [IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat, IDL.Text, IDL.Nat, IDL.Text],
+        [],
         [],
       ),
-    'updateStaff' : IDL.Func(
-        [IDL.Nat, IDL.Text, IDL.Text],
-        [IDL.Opt(Staff)],
-        [],
-      ),
+    'updateStaff' : IDL.Func([IDL.Nat, IDL.Text, IDL.Text, IDL.Text], [], []),
   });
 };
 

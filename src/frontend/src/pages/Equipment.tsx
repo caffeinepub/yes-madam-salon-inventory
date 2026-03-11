@@ -39,7 +39,7 @@ import {
   getEquipmentCheckouts,
   getEquipmentItems,
   returnEquipmentCheckout,
-} from "../lib/localStorage";
+} from "../lib/dataService";
 
 // ── Inline Query Hooks ────────────────────────────────────────────────────────
 
@@ -160,10 +160,7 @@ export function Equipment() {
     }: {
       staffId: number;
       equipmentId: number;
-    }) => {
-      const record = addEquipmentCheckout(staffId, equipmentId);
-      return Promise.resolve(record);
-    },
+    }) => addEquipmentCheckout(staffId, equipmentId),
     onSuccess: (record) => {
       queryClient.invalidateQueries({ queryKey: ["equipment_checkouts"] });
       toast.success(`Checked out at ${record.takenAt}`);
@@ -174,10 +171,7 @@ export function Equipment() {
   });
 
   const addItemMutation = useMutation({
-    mutationFn: (name: string) => {
-      const item = addEquipmentItem(name);
-      return Promise.resolve(item);
-    },
+    mutationFn: (name: string) => addEquipmentItem(name),
     onSuccess: (item) => {
       queryClient.invalidateQueries({ queryKey: ["equipment_items"] });
       toast.success(`"${item.name}" added`);
@@ -187,10 +181,7 @@ export function Equipment() {
   });
 
   const deleteItemMutation = useMutation({
-    mutationFn: (id: number) => {
-      deleteEquipmentItem(id);
-      return Promise.resolve();
-    },
+    mutationFn: (id: number) => deleteEquipmentItem(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["equipment_items"] });
       toast.success("Equipment item removed");
@@ -199,10 +190,7 @@ export function Equipment() {
   });
 
   const returnMutation = useMutation({
-    mutationFn: (id: number) => {
-      returnEquipmentCheckout(id);
-      return Promise.resolve();
-    },
+    mutationFn: (id: number) => returnEquipmentCheckout(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["equipment_checkouts"] });
       const now = new Date();

@@ -60,7 +60,7 @@ import {
   useStaff,
   useUsageRecords,
 } from "../hooks/useQueries";
-import { getAttendanceForDate } from "../lib/localStorage";
+import { getAttendanceForDate } from "../lib/dataService";
 import type { AttendanceStatus } from "../types";
 
 const CHART_COLORS = ["#e91e8c", "#7c3aed", "#0ea5e9", "#10b981", "#f59e0b"];
@@ -171,22 +171,7 @@ export function Dashboard() {
   const [productSearch, setProductSearch] = useState("");
   const [staffSearch, setStaffSearch] = useState("");
 
-  const deletedIds = useMemo(() => {
-    try {
-      return new Set(
-        JSON.parse(
-          localStorage.getItem("ym_deleted_products") || "[]",
-        ) as number[],
-      );
-    } catch {
-      return new Set<number>();
-    }
-  }, []);
-
-  const activeProducts = useMemo(
-    () => products.filter((p) => !deletedIds.has(p.id)),
-    [products, deletedIds],
-  );
+  const activeProducts = products;
 
   const filteredQProducts = useMemo(() => {
     if (!productSearch.trim()) return activeProducts;

@@ -1,32 +1,29 @@
 # Yes Madam Salon Inventory
 
 ## Current State
-Full-stack salon inventory app with: Dashboard, Usage Entry, Usage History, Charts, Categories, Products, Staff, Attendance, Equipment Checkout, Cash Ledger.
-- Equipment page has search in checkout history table, but NOT in Equipment Items list
-- Staff page already has search bar
-- Categories page has single-add form only, no bulk paste
-- Dashboard shows stats, charts, recent usage table, but no live clock and no quick usage entry
-- AppLayout sidebar has no clock widget
+Full-stack app with Motoko backend and React frontend. All data is currently stored in browser localStorage because the backend lacked stable storage -- causing data loss on page refresh from a different device or after cache clear. Backend exists with basic CRUD but uses non-stable Map structures and is missing many entities (Equipment, Attendance, CashLedger, HomeServiceSettlement, rack numbers, staff mobile, etc.).
 
 ## Requested Changes (Diff)
 
 ### Add
-1. **Live Clock in Sidebar** -- A live digital clock widget at the bottom of the sidebar (above footer), showing current time HH:MM:SS updated every second using setInterval
-2. **Equipment Items search** -- Search bar above the Equipment Items list in the "Equipment List" card (right side of Equipment page), to filter items by name
-3. **Categories Bulk Paste** -- A second tab or section in the "Add Category" card: "Paste Multiple" mode where user can paste a newline-separated or comma-separated list of category names, preview them, and add all at once
-4. **Dashboard Quick Usage Entry** -- A compact "Quick Usage Entry" card on the Dashboard page with the same form fields (product searchable dropdown, staff searchable dropdown, quantity, optional client name, date auto-today) and a submit button. Successful submission invalidates usage queries and shows toast.
+- Stable storage in Motoko backend for all entities so data persists permanently on the server
+- Backend APIs for all missing entities: EquipmentItems, EquipmentCheckouts, Attendance, CashEntries, HomeServiceSettlements
+- Staff mobile field in backend
+- Product rackNumber field in backend
+- deleteUsageRecord API
 
 ### Modify
-- AppLayout sidebar: add a LiveClock component between nav and footer
-- Equipment.tsx: add equipmentItemSearch state and filter equipmentItems list
-- Categories.tsx: add a "Paste Multiple" panel with textarea, parse on newline/comma, preview list with remove-per-item, then "Add All" button that calls addMutation in sequence
-- Dashboard.tsx: add QuickUsageEntry card below the top stats section (before charts)
+- Rewrite main.mo with stable var arrays + preupgrade/postupgrade migration pattern
+- All frontend pages to call backend actor instead of localStorage functions
+- Keep localStorage as zero-state fallback only during loading
 
 ### Remove
-- Nothing removed
+- All localStorage-based data persistence (localStorage.ts functions should become backend calls)
+- Pre-seeded categories (user wants to manage their own)
 
 ## Implementation Plan
-1. Create a LiveClock component (inline in AppLayout or as separate file) using useEffect + setInterval, display HH:MM:SS in sidebar
-2. Equipment.tsx: add `equipmentItemSearch` state, filter `equipmentItems` by that search, show a search input above the items list in "Equipment List" card
-3. Categories.tsx: add `pasteMode` toggle button in "Add Category" card header, show textarea when in paste mode, parse input on newline+comma, show preview chips with remove button each, "Add All" button to batch-add
-4. Dashboard.tsx: import needed hooks (useProducts, useStaff, useAddUsageRecord, useCategories), add QuickUsageEntry section with product/staff searchable popovers, quantity input, submit handler -- positioned before charts section
+1. Rewrite main.mo with stable var arrays for: categories, products, staff, usageRecords, equipmentItems, equipmentCheckouts, attendanceRecords (flattened), cashEntries, homeServiceSettlements -- with preupgrade/postupgrade hooks
+2. Add all missing CRUD APIs
+3. Update frontend: replace all localStorage calls with backend actor calls (async/await pattern), show loading states while fetching
+4. Remove dependency on localStorage for data (keep only for UI state if needed)
+5. Validate build and deploy

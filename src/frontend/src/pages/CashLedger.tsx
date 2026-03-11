@@ -48,7 +48,7 @@ import {
   getCashEntriesForDate,
   getHomeServiceSettlementsForDate,
   getRideBalanceByStaff,
-} from "../lib/localStorage";
+} from "../lib/dataService";
 import type { CashEntry, CashEntryType, HomeServiceSettlement } from "../types";
 
 function todayStr() {
@@ -226,7 +226,7 @@ export function CashLedger() {
           ? (staffMap[Number(formStaffId)] ?? formDesc)
           : formDesc;
 
-      addCashEntry({
+      await addCashEntry({
         date,
         type: formType,
         amount,
@@ -246,10 +246,14 @@ export function CashLedger() {
     }
   }
 
-  function handleDelete(id: number) {
-    deleteCashEntry(id);
-    invalidate();
-    toast("Entry delete ho gayi");
+  async function handleDelete(id: number) {
+    try {
+      await deleteCashEntry(id);
+      invalidate();
+      toast("Entry delete ho gayi");
+    } catch {
+      toast.error("Delete failed");
+    }
   }
 
   function handleDownload() {
@@ -297,7 +301,7 @@ export function CashLedger() {
     }
     setHsSubmitting(true);
     try {
-      addHomeServiceSettlement({
+      await addHomeServiceSettlement({
         date,
         staffId: Number(hsStaffId),
         clientName: hsClientName.trim(),
@@ -320,10 +324,14 @@ export function CashLedger() {
     }
   }
 
-  function handleDeleteSettlement(id: number) {
-    deleteHomeServiceSettlement(id);
-    invalidate();
-    toast("Settlement delete ho gayi");
+  async function handleDeleteSettlement(id: number) {
+    try {
+      await deleteHomeServiceSettlement(id);
+      invalidate();
+      toast("Settlement delete ho gayi");
+    } catch {
+      toast.error("Delete failed");
+    }
   }
 
   return (

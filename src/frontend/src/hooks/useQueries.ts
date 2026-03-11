@@ -1,20 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  addCategory as dsAddCategory,
+  addProduct as dsAddProduct,
+  addStaff as dsAddStaff,
+  addUsageRecord as dsAddUsageRecord,
+  deleteCategory as dsDeleteCategory,
+  deleteProduct as dsDeleteProduct,
+  deleteStaff as dsDeleteStaff,
+  deleteUsageRecord as dsDeleteUsageRecord,
+  updateProduct as dsUpdateProduct,
+  updateStaff as dsUpdateStaff,
   getCategories,
   getProducts,
   getStaff,
   getUsageRecords,
-  addCategory as lsAddCategory,
-  addProduct as lsAddProduct,
-  addStaff as lsAddStaff,
-  addUsageRecord as lsAddUsageRecord,
-  deleteCategory as lsDeleteCategory,
-  deleteProduct as lsDeleteProduct,
-  deleteStaff as lsDeleteStaff,
-  deleteUsageRecord as lsDeleteUsageRecord,
-  updateProduct as lsUpdateProduct,
-  updateStaff as lsUpdateStaff,
-} from "../lib/localStorage";
+} from "../lib/dataService";
 import type { UsageRecord } from "../types";
 
 // ── Categories ────────────────────────────────────────────────────────────────
@@ -30,7 +30,7 @@ export function useAddCategory() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (name: string) => {
-      return lsAddCategory(name);
+      return dsAddCategory(name);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
   });
@@ -40,7 +40,7 @@ export function useDeleteCategory() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: number) => {
-      lsDeleteCategory(id);
+      await dsDeleteCategory(id);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
   });
@@ -66,7 +66,7 @@ export function useAddProduct() {
       lowStockThreshold: number;
       rackNumber?: string;
     }) => {
-      return lsAddProduct(data);
+      return dsAddProduct(data);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["products"] }),
   });
@@ -84,7 +84,7 @@ export function useUpdateProduct() {
       currentStock: number;
       rackNumber?: string;
     }) => {
-      lsUpdateProduct(data.id, {
+      await dsUpdateProduct(data.id, {
         name: data.name,
         categoryId: data.categoryId,
         unit: data.unit,
@@ -101,7 +101,7 @@ export function useDeleteProduct() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: number) => {
-      lsDeleteProduct(id);
+      await dsDeleteProduct(id);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["products"] }),
   });
@@ -124,7 +124,7 @@ export function useAddStaff() {
       role: string;
       mobile?: string;
     }) => {
-      return lsAddStaff(data.name, data.role, data.mobile);
+      return dsAddStaff(data.name, data.role, data.mobile);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["staff"] }),
   });
@@ -139,7 +139,7 @@ export function useUpdateStaff() {
       role: string;
       mobile?: string;
     }) => {
-      lsUpdateStaff(data.id, data.name, data.role, data.mobile);
+      await dsUpdateStaff(data.id, data.name, data.role, data.mobile);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["staff"] }),
   });
@@ -149,7 +149,7 @@ export function useDeleteStaff() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: number) => {
-      lsDeleteStaff(id);
+      await dsDeleteStaff(id);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["staff"] }),
   });
@@ -168,7 +168,7 @@ export function useAddUsageRecord() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (record: Omit<UsageRecord, "id">) => {
-      return lsAddUsageRecord(record);
+      return dsAddUsageRecord(record);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["usage_records"] });
@@ -181,7 +181,7 @@ export function useDeleteUsageRecord() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: number) => {
-      lsDeleteUsageRecord(id);
+      await dsDeleteUsageRecord(id);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["usage_records"] });

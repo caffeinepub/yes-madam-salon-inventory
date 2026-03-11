@@ -32,7 +32,7 @@ import {
   getAttendanceForDate,
   markAllPresentForDate,
   setAttendanceStatus,
-} from "../lib/localStorage";
+} from "../lib/dataService";
 import type { AttendanceStatus } from "../types";
 
 function todayStr() {
@@ -111,31 +111,47 @@ export function Attendance() {
     qc.invalidateQueries({ queryKey: ["attendance"] });
   }
 
-  function handlePresent(staffId: number) {
-    setAttendanceStatus(staffId, date, "present");
-    invalidate();
-    toast.success("Marked as Present");
+  async function handlePresent(staffId: number) {
+    try {
+      await setAttendanceStatus(staffId, date, "present");
+      invalidate();
+      toast.success("Marked as Present");
+    } catch {
+      toast.error("Failed to mark attendance");
+    }
   }
 
-  function handleAbsent(staffId: number) {
-    setAttendanceStatus(staffId, date, "absent");
-    invalidate();
-    toast.success("Marked as Absent");
+  async function handleAbsent(staffId: number) {
+    try {
+      await setAttendanceStatus(staffId, date, "absent");
+      invalidate();
+      toast.success("Marked as Absent");
+    } catch {
+      toast.error("Failed to mark attendance");
+    }
   }
 
-  function handleClear(staffId: number) {
-    clearAttendanceStatus(staffId, date);
-    invalidate();
-    toast("Attendance cleared");
+  async function handleClear(staffId: number) {
+    try {
+      await clearAttendanceStatus(staffId, date);
+      invalidate();
+      toast("Attendance cleared");
+    } catch {
+      toast.error("Failed to clear attendance");
+    }
   }
 
-  function handleMarkAll() {
-    markAllPresentForDate(
-      staff.map((s) => s.id),
-      date,
-    );
-    invalidate();
-    toast.success("All staff marked as Present");
+  async function handleMarkAll() {
+    try {
+      await markAllPresentForDate(
+        staff.map((s) => s.id),
+        date,
+      );
+      invalidate();
+      toast.success("All staff marked as Present");
+    } catch {
+      toast.error("Failed to mark all present");
+    }
   }
 
   function handleDownload() {
