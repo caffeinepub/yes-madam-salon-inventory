@@ -129,7 +129,7 @@ export const idlService = IDL.Service({
   'returnEquipmentCheckout' : IDL.Func([IDL.Nat, IDL.Text], [], []),
   'setAttendance' : IDL.Func([IDL.Text, IDL.Nat, IDL.Text], [], []),
   'updateProduct' : IDL.Func(
-      [IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat, IDL.Text, IDL.Nat, IDL.Text],
+      [IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat, IDL.Text, IDL.Nat, IDL.Text, IDL.Nat, IDL.Text],
       [],
       [],
     ),
@@ -264,7 +264,7 @@ export const idlFactory = ({ IDL }) => {
     'returnEquipmentCheckout' : IDL.Func([IDL.Nat, IDL.Text], [], []),
     'setAttendance' : IDL.Func([IDL.Text, IDL.Nat, IDL.Text], [], []),
     'updateProduct' : IDL.Func(
-        [IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat, IDL.Text, IDL.Nat, IDL.Text],
+        [IDL.Nat, IDL.Text, IDL.Nat, IDL.Nat, IDL.Text, IDL.Nat, IDL.Text, IDL.Nat, IDL.Text],
         [],
         [],
       ),

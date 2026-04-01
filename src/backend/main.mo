@@ -2,9 +2,9 @@ import Array "mo:core/Array";
 import Nat "mo:core/Nat";
 import VarArray "mo:core/VarArray";
 import Iter "mo:core/Iter";
-import Migration "migration";
 
-(with migration = Migration.run)
+
+
 actor {
   // Types
 
@@ -13,12 +13,27 @@ actor {
     name : Text;
   };
 
+  // Legacy Product type (without openingDate) used for migration
+  type ProductV1 = {
+    id : Nat;
+    name : Text;
+    brand : Text;
+    categoryId : Nat;
+    openingStock : Nat;
+    currentStock : Nat;
+    unit : Text;
+    lowStockThreshold : Nat;
+    rackNumber : Text;
+  };
+
+  // Current Product type (with openingDate)
   type Product = {
     id : Nat;
     name : Text;
     brand : Text;
     categoryId : Nat;
     openingStock : Nat;
+    openingDate : Text;
     currentStock : Nat;
     unit : Text;
     lowStockThreshold : Nat;
@@ -88,7 +103,10 @@ actor {
   // Stable storage
 
   stable var categories : [Category] = [];
-  stable var products : [Product] = [];
+  // Legacy stable var - holds old products without openingDate (for migration)
+  stable var products : [ProductV1] = [];
+  // New stable var - holds products with openingDate
+  stable var products_v2 : [Product] = [];
   stable var staff : [Staff] = [];
   stable var usageRecords : [UsageRecord] = [];
   stable var equipmentItems : [EquipmentItem] = [];
@@ -106,6 +124,28 @@ actor {
   stable var nextAttendanceId : Nat = 1;
   stable var nextCashEntryId : Nat = 1;
   stable var nextHomeServiceSettlementId : Nat = 1;
+
+  // Migration: on upgrade, move old products (without openingDate) to products_v2
+  system func postupgrade() {
+    if (products.size() > 0) {
+      let migrated = products.map(func(p : ProductV1) : Product {
+        {
+          id = p.id;
+          name = p.name;
+          brand = p.brand;
+          categoryId = p.categoryId;
+          openingStock = p.openingStock;
+          openingDate = "";
+          currentStock = p.currentStock;
+          unit = p.unit;
+          lowStockThreshold = p.lowStockThreshold;
+          rackNumber = p.rackNumber;
+        }
+      });
+      products_v2 := products_v2.concat(migrated);
+      products := [];
+    };
+  };
 
   // Category APIs
 
@@ -134,13 +174,14 @@ actor {
   // Product APIs
 
   public query ({ caller }) func getProducts() : async [Product] {
-    products;
+    products_v2;
   };
 
   public shared ({ caller }) func addProduct(
     name : Text,
     categoryId : Nat,
     openingStock : Nat,
+    openingDate : Text,
     unit : Text,
     lowStockThreshold : Nat,
     rackNumber : Text,
@@ -151,14 +192,15 @@ actor {
       brand = "Yes Madam";
       categoryId;
       openingStock;
+      openingDate;
       currentStock = openingStock;
       unit;
       lowStockThreshold;
       rackNumber;
     };
 
-    let newProducts = products.concat([product]);
-    products := newProducts;
+    let newProducts = products_v2.concat([product]);
+    products_v2 := newProducts;
     nextProductId += 1;
 
     product;
@@ -168,12 +210,14 @@ actor {
     id : Nat,
     name : Text,
     categoryId : Nat,
+    openingStock : Nat,
+    openingDate : Text,
     currentStock : Nat,
     unit : Text,
     lowStockThreshold : Nat,
     rackNumber : Text,
   ) : async () {
-    let newProducts = products.map(
+    let newProducts = products_v2.map(
       func(p) {
         if (p.id == id) {
           {
@@ -181,7 +225,8 @@ actor {
             name;
             brand = p.brand;
             categoryId;
-            openingStock = p.openingStock;
+            openingStock;
+            openingDate;
             currentStock;
             unit;
             lowStockThreshold;
@@ -192,12 +237,12 @@ actor {
         };
       }
     );
-    products := newProducts;
+    products_v2 := newProducts;
   };
 
   public shared ({ caller }) func deleteProduct(id : Nat) : async () {
-    let newProducts = products.filter(func(p) { p.id != id });
-    products := newProducts;
+    let newProducts = products_v2.filter(func(p) { p.id != id });
+    products_v2 := newProducts;
   };
 
   // Staff APIs
@@ -278,9 +323,65 @@ actor {
     let newUsageRecords = usageRecords.concat([usageRecord]);
     usageRecords := newUsageRecords;
     nextUsageId += 1;
+
+    // Decrease product stock automatically
+    let newProducts = products_v2.map(
+      func(p) {
+        if (p.id == productId) {
+          let newStock = if (p.currentStock >= quantity) { p.currentStock - quantity } else { 0 };
+          {
+            id = p.id;
+            name = p.name;
+            brand = p.brand;
+            categoryId = p.categoryId;
+            openingStock = p.openingStock;
+            openingDate = p.openingDate;
+            currentStock = newStock;
+            unit = p.unit;
+            lowStockThreshold = p.lowStockThreshold;
+            rackNumber = p.rackNumber;
+          };
+        } else {
+          p;
+        };
+      }
+    );
+    products_v2 := newProducts;
   };
 
   public shared ({ caller }) func deleteUsageRecord(id : Nat) : async () {
+    // Restore stock when usage record is deleted
+    var deletedProductId : Nat = 0;
+    var deletedQuantity : Nat = 0;
+    for (u in usageRecords.vals()) {
+      if (u.id == id) {
+        deletedProductId := u.productId;
+        deletedQuantity := u.quantity;
+      };
+    };
+    if (deletedProductId != 0 or deletedQuantity != 0) {
+      let newProducts = products_v2.map(
+        func(p) {
+          if (p.id == deletedProductId) {
+            {
+              id = p.id;
+              name = p.name;
+              brand = p.brand;
+              categoryId = p.categoryId;
+              openingStock = p.openingStock;
+              openingDate = p.openingDate;
+              currentStock = p.currentStock + deletedQuantity;
+              unit = p.unit;
+              lowStockThreshold = p.lowStockThreshold;
+              rackNumber = p.rackNumber;
+            };
+          } else {
+            p;
+          };
+        }
+      );
+      products_v2 := newProducts;
+    };
     let newUsageRecords = usageRecords.filter(func(u) { u.id != id });
     usageRecords := newUsageRecords;
   };

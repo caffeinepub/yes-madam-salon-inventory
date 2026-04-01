@@ -6,6 +6,7 @@ import {
   History,
   LayoutDashboard,
   Package,
+  Package2,
   Scissors,
   Tag,
   Users,
@@ -21,6 +22,7 @@ type Route =
   | "/staff"
   | "/attendance"
   | "/equipment"
+  | "/pack-tracker"
   | "/usage"
   | "/usage-history"
   | "/charts"
@@ -87,6 +89,12 @@ const navItems: NavItem[] = [
     label: "Equipment",
     icon: <Wrench size={18} />,
     ocid: "sidebar.equipment_link",
+  },
+  {
+    to: "/pack-tracker",
+    label: "Pack Tracker",
+    icon: <Package2 size={18} />,
+    ocid: "sidebar.pack_tracker_link",
   },
   {
     to: "/cash-ledger",

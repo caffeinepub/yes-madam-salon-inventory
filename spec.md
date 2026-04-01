@@ -1,29 +1,32 @@
 # Yes Madam Salon Inventory
 
 ## Current State
-Full-stack app with Motoko backend and React frontend. All data is currently stored in browser localStorage because the backend lacked stable storage -- causing data loss on page refresh from a different device or after cache clear. Backend exists with basic CRUD but uses non-stable Map structures and is missing many entities (Equipment, Attendance, CashLedger, HomeServiceSettlement, rack numbers, staff mobile, etc.).
+- Products have openingStock and openingDate fields but updateProduct backend function does NOT allow editing these fields
+- Pack Tracker is a "checkout/return" system (take and return model with Full/Half packs)
+- Pack Tracker data stored in localStorage via dataService
 
 ## Requested Changes (Diff)
 
 ### Add
-- Stable storage in Motoko backend for all entities so data persists permanently on the server
-- Backend APIs for all missing entities: EquipmentItems, EquipmentCheckouts, Attendance, CashEntries, HomeServiceSettlements
-- Staff mobile field in backend
-- Product rackNumber field in backend
-- deleteUsageRecord API
+- `updateProductOpening(id, openingStock, openingDate)` backend function to update opening stock and date
+- Products page: edit button that opens a form to update opening stock + opening date (and other fields)
+- Pack Tracker: "Maal Aaya" (Stock Arrival) section - log when stock arrived, how much, with date
+- Pack Tracker: "Kisne Kitna Liya" (Distribution) section - log which staff took how much quantity, with date/time
+- Pack Tracker: New types: PackArrival (id, itemId, quantity, date, notes) and PackDistribution (id, itemId, staffId, quantity, date, time, notes)
 
 ### Modify
-- Rewrite main.mo with stable var arrays + preupgrade/postupgrade migration pattern
-- All frontend pages to call backend actor instead of localStorage functions
-- Keep localStorage as zero-state fallback only during loading
+- Pack Tracker completely redesigned: remove old checkout/return model, replace with arrival log + distribution log
+- Products edit form to include openingStock and openingDate fields
+- backend updateProduct to also accept openingStock and openingDate params
 
 ### Remove
-- All localStorage-based data persistence (localStorage.ts functions should become backend calls)
-- Pre-seeded categories (user wants to manage their own)
+- Pack Tracker: checkout/return model (takenAt, returnedAt, packStatus full/half fields)
+- Old PackCheckout type and related functions
 
 ## Implementation Plan
-1. Rewrite main.mo with stable var arrays for: categories, products, staff, usageRecords, equipmentItems, equipmentCheckouts, attendanceRecords (flattened), cashEntries, homeServiceSettlements -- with preupgrade/postupgrade hooks
-2. Add all missing CRUD APIs
-3. Update frontend: replace all localStorage calls with backend actor calls (async/await pattern), show loading states while fetching
-4. Remove dependency on localStorage for data (keep only for UI state if needed)
-5. Validate build and deploy
+1. Update backend `updateProduct` to accept openingStock and openingDate params
+2. Update backend.d.ts accordingly
+3. Update Products page edit modal to include opening stock + opening date fields
+4. Redesign Pack Tracker types: PackItem, PackArrival, PackDistribution
+5. Update dataService for new pack tracker functions
+6. Rewrite PackTracker.tsx with two sections: Stock Arrivals + Distribution Log

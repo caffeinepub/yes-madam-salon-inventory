@@ -61,6 +61,20 @@ import {
 
 const PAGE_SIZE = 10;
 
+function todayDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function formatDate(dateStr: string): string {
+  if (!dateStr) return "—";
+  try {
+    const [y, m, d] = dateStr.split("-");
+    return `${d}/${m}/${y}`;
+  } catch {
+    return dateStr;
+  }
+}
+
 // ── Paste from Excel types ────────────────────────────────────────────────────
 
 interface ParsedRow {
@@ -71,7 +85,6 @@ interface ParsedRow {
   rackNumber: string;
   matchedCategoryId: number | null;
   matchedCategoryName: string | null;
-  // override category picked by user for unmatched rows
   overrideCategoryId: string;
 }
 
@@ -110,7 +123,6 @@ function parseExcelPaste(
   return dataLines
     .map((line) => {
       const cols = splitLine(line).map((c) => c.trim());
-      // Expected: Name, Category, Unit, Opening Stock, Rack No
       const name = cols[0] ?? "";
       const rawCategory = cols[1] ?? "";
       const unit = cols[2] ?? "pcs";
@@ -119,7 +131,6 @@ function parseExcelPaste(
 
       if (!name) return null;
 
-      // Case-insensitive partial match for category
       const lower = rawCategory.toLowerCase();
       const matched = categories.find(
         (c) =>
@@ -202,6 +213,7 @@ function PasteImportDialog({
 
     let successCount = 0;
     let failCount = 0;
+    const today = todayDate();
 
     for (const row of importable) {
       const catId = row.matchedCategoryId ?? Number(row.overrideCategoryId);
@@ -214,6 +226,7 @@ function PasteImportDialog({
           name: row.name,
           categoryId: catId,
           openingStock: row.openingStock,
+          openingDate: today,
           unit: row.unit || "pcs",
           lowStockThreshold: 0,
           rackNumber: row.rackNumber || undefined,
@@ -463,7 +476,7 @@ function PasteImportDialog({
                 </Button>
               )}
               <Button
-                data-ocid="products.paste_import.import_button"
+                data-ocid="products.paste_import.import_all_button"
                 onClick={() => handleImport(false)}
                 disabled={
                   importing ||
@@ -499,6 +512,7 @@ interface ProductFormData {
   name: string;
   categoryId: string;
   openingStock: string;
+  openingDate: string;
   unit: string;
   lowStockThreshold: string;
   currentStock: string;
@@ -509,6 +523,7 @@ const EMPTY_FORM: ProductFormData = {
   name: "",
   categoryId: "",
   openingStock: "",
+  openingDate: "",
   unit: "",
   lowStockThreshold: "",
   currentStock: "",
@@ -522,6 +537,7 @@ function exportProductsToExcel(
     categoryName: string;
     brand: string;
     openingStock: number;
+    openingDate: string;
     currentStock: number;
     unit: string;
     lowStockThreshold: number;
@@ -535,7 +551,8 @@ function exportProductsToExcel(
     "Category",
     "Brand",
     "Opening Stock",
-    "Current Stock",
+    "Opening Date",
+    "Current Stock (Bachaa)",
     "Unit",
     "Low Stock Threshold",
     "Rack No",
@@ -546,6 +563,7 @@ function exportProductsToExcel(
     p.categoryName,
     p.brand,
     p.openingStock,
+    p.openingDate ? formatDate(p.openingDate) : "",
     p.currentStock,
     p.unit,
     p.lowStockThreshold,
@@ -575,7 +593,10 @@ export function Products() {
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [form, setForm] = useState<ProductFormData>(EMPTY_FORM);
+  const [form, setForm] = useState<ProductFormData>({
+    ...EMPTY_FORM,
+    openingDate: todayDate(),
+  });
   const [deleteTarget, setDeleteTarget] = useState<{
     id: number;
     name: string;
@@ -607,7 +628,7 @@ export function Products() {
 
   const openAdd = () => {
     setEditingId(null);
-    setForm(EMPTY_FORM);
+    setForm({ ...EMPTY_FORM, openingDate: todayDate() });
     setDialogOpen(true);
   };
 
@@ -617,6 +638,7 @@ export function Products() {
       name: p.name,
       categoryId: String(p.categoryId),
       openingStock: String(p.openingStock),
+      openingDate: p.openingDate ?? "",
       unit: p.unit,
       lowStockThreshold: String(p.lowStockThreshold),
       currentStock: String(p.currentStock),
@@ -645,6 +667,8 @@ export function Products() {
           id: editingId,
           name: form.name.trim(),
           categoryId: Number(form.categoryId),
+          openingStock: Number(form.openingStock) || 0,
+          openingDate: form.openingDate || todayDate(),
           unit: form.unit.trim(),
           lowStockThreshold: Number(form.lowStockThreshold) || 0,
           currentStock: Number(form.currentStock) || 0,
@@ -656,6 +680,7 @@ export function Products() {
           name: form.name.trim(),
           categoryId: Number(form.categoryId),
           openingStock: Number(form.openingStock) || 0,
+          openingDate: form.openingDate || todayDate(),
           unit: form.unit.trim(),
           lowStockThreshold: Number(form.lowStockThreshold) || 0,
           rackNumber: form.rackNumber.trim(),
@@ -741,6 +766,7 @@ export function Products() {
               categoryName: categoryMap[p.categoryId] ?? "",
               brand: p.brand,
               openingStock: p.openingStock,
+              openingDate: p.openingDate ?? "",
               currentStock: p.currentStock,
               unit: p.unit,
               lowStockThreshold: p.lowStockThreshold,
@@ -782,11 +808,12 @@ export function Products() {
               <TableHead className="text-xs text-right">
                 Opening Stock
               </TableHead>
+              <TableHead className="text-xs">Opening Date</TableHead>
               <TableHead className="text-xs text-right">
-                Current Stock
+                Current (Bachaa)
               </TableHead>
               <TableHead className="text-xs">Unit</TableHead>
-              <TableHead className="text-xs text-right">Threshold</TableHead>
+              <TableHead className="text-xs text-right">Min</TableHead>
               <TableHead className="text-xs w-24">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -794,18 +821,27 @@ export function Products() {
             {isLoading ? (
               ["r1", "r2", "r3", "r4", "r5"].map((rowKey) => (
                 <TableRow key={rowKey}>
-                  {["c1", "c2", "c3", "c4", "c5", "c6", "c7", "c8", "c9"].map(
-                    (colKey) => (
-                      <TableCell key={colKey}>
-                        <Skeleton className="h-4 w-full" />
-                      </TableCell>
-                    ),
-                  )}
+                  {[
+                    "c1",
+                    "c2",
+                    "c3",
+                    "c4",
+                    "c5",
+                    "c6",
+                    "c7",
+                    "c8",
+                    "c9",
+                    "c10",
+                  ].map((colKey) => (
+                    <TableCell key={colKey}>
+                      <Skeleton className="h-4 w-full" />
+                    </TableCell>
+                  ))}
                 </TableRow>
               ))
             ) : paginated.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9}>
+                <TableCell colSpan={10}>
                   <div
                     data-ocid="products.empty_state"
                     className="text-center py-10 text-muted-foreground text-sm"
@@ -852,6 +888,11 @@ export function Products() {
                     </TableCell>
                     <TableCell className="text-sm text-right">
                       {product.openingStock}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {product.openingDate
+                        ? formatDate(product.openingDate)
+                        : "—"}
                     </TableCell>
                     <TableCell className="text-sm text-right">
                       <span
@@ -938,7 +979,7 @@ export function Products() {
 
       {/* Add/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent data-ocid="products.dialog" className="sm:max-w-md">
+        <DialogContent data-ocid="products.dialog" className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="font-display text-xl">
               {editingId !== null ? "Edit Product" : "Add Product"}
@@ -975,8 +1016,9 @@ export function Products() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              {editingId === null ? (
+
+            {editingId === null ? (
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="p-opening">Opening Stock</Label>
                   <Input
@@ -991,21 +1033,76 @@ export function Products() {
                     }
                   />
                 </div>
-              ) : (
                 <div className="space-y-1.5">
-                  <Label htmlFor="p-current">Current Stock</Label>
+                  <Label htmlFor="p-opening-date">
+                    Opening Date{" "}
+                    <span className="text-muted-foreground text-xs">
+                      (गिनती की तारीख)
+                    </span>
+                  </Label>
                   <Input
-                    id="p-current"
-                    type="number"
-                    min="0"
-                    placeholder="0"
-                    value={form.currentStock}
+                    id="p-opening-date"
+                    data-ocid="products.opening_date.input"
+                    type="date"
+                    value={form.openingDate || todayDate()}
                     onChange={(e) =>
-                      setForm((f) => ({ ...f, currentStock: e.target.value }))
+                      setForm((f) => ({ ...f, openingDate: e.target.value }))
                     }
                   />
                 </div>
-              )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="p-opening-edit">Opening Stock</Label>
+                  <Input
+                    id="p-opening-edit"
+                    data-ocid="products.opening_stock_edit.input"
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={form.openingStock}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, openingStock: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="p-opening-date-edit">
+                    Opening Date{" "}
+                    <span className="text-muted-foreground text-xs">
+                      (गिनती की तारीख)
+                    </span>
+                  </Label>
+                  <Input
+                    id="p-opening-date-edit"
+                    data-ocid="products.opening_date_edit.input"
+                    type="date"
+                    value={form.openingDate || todayDate()}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, openingDate: e.target.value }))
+                    }
+                  />
+                </div>
+              </div>
+            )}
+            {editingId !== null && (
+              <div className="space-y-1.5">
+                <Label htmlFor="p-current">Current Stock (Bachaa)</Label>
+                <Input
+                  id="p-current"
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={form.currentStock}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, currentStock: e.target.value }))
+                  }
+                />
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="p-unit">Unit</Label>
                 <Input
@@ -1018,21 +1115,25 @@ export function Products() {
                   }
                 />
               </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="p-threshold">Min Stock Alert</Label>
+                <Input
+                  id="p-threshold"
+                  data-ocid="products.threshold.input"
+                  type="number"
+                  min="0"
+                  placeholder="e.g., 5"
+                  value={form.lowStockThreshold}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      lowStockThreshold: e.target.value,
+                    }))
+                  }
+                />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="p-threshold">Low Stock Threshold</Label>
-              <Input
-                id="p-threshold"
-                data-ocid="products.threshold.input"
-                type="number"
-                min="0"
-                placeholder="e.g., 5"
-                value={form.lowStockThreshold}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, lowStockThreshold: e.target.value }))
-                }
-              />
-            </div>
+
             <div className="space-y-1.5">
               <Label htmlFor="p-rack">
                 Rack Number{" "}

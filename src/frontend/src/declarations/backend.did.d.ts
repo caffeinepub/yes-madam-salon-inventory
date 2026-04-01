@@ -117,7 +117,7 @@ export interface _SERVICE {
   'returnEquipmentCheckout' : ActorMethod<[bigint, string], undefined>,
   'setAttendance' : ActorMethod<[string, bigint, string], undefined>,
   'updateProduct' : ActorMethod<
-    [bigint, string, bigint, bigint, string, bigint, string],
+    [bigint, string, bigint, bigint, string, bigint, string, bigint, string],
     undefined
   >,
   'updateStaff' : ActorMethod<[bigint, string, string, string], undefined>,

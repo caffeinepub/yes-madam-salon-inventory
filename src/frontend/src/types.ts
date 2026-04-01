@@ -9,6 +9,7 @@ export interface Product {
   brand: string;
   categoryId: number;
   openingStock: number;
+  openingDate: string;
   currentStock: number;
   unit: string;
   lowStockThreshold: number;
@@ -33,6 +34,48 @@ export interface UsageRecord {
   clientName?: string;
 }
 
+export interface EquipmentItem {
+  id: number;
+  name: string;
+}
+
+export interface EquipmentCheckout {
+  id: number;
+  staffId: number;
+  equipmentId: number;
+  date: string;
+  takenAt: string;
+  returnedAt?: string;
+}
+
+export type AttendanceStatus = "present" | "absent" | "half-day";
+
+// date -> staffId -> status
+export type AttendanceRecord = Record<number, Record<number, AttendanceStatus>>;
+
+export type CashEntryType = "income" | "expense" | "ride";
+
+export interface CashEntry {
+  id: number;
+  date: string;
+  type: CashEntryType;
+  description: string;
+  amount: number;
+  notes?: string;
+  recipientStaffId?: number;
+}
+
+export interface HomeServiceSettlement {
+  id: number;
+  date: string;
+  staffId: number;
+  clientName: string;
+  serviceAmount: number;
+  clientPaid: number;
+  travelExpense: number;
+  notes?: string;
+}
+
 export interface ProductEdit {
   name: string;
   categoryId: number;
@@ -41,53 +84,31 @@ export interface ProductEdit {
   rackNumber?: string;
 }
 
-export type StockOverrides = Record<number, number>;
 export type ProductEdits = Record<number, ProductEdit>;
+export type StockOverrides = Record<number, number>;
 
-export interface EquipmentItem {
+// ── Pack Tracker ──────────────────────────────────────────────────────────────────────────────
+
+export interface PackItem {
   id: number;
-  name: string; // e.g. "Roll-On Heater", "Wax Pot"
+  name: string; // e.g. "Wax Roll", "Bleach Powder"
+  unit: string; // e.g. "pcs", "ml", "gm"
 }
 
-export interface EquipmentCheckout {
+export interface PackArrival {
   id: number;
-  staffId: number;
-  equipmentId: number;
+  packItemId: number;
+  quantity: number;
   date: string; // YYYY-MM-DD
-  takenAt: string; // HH:MM
-  returnedAt?: string; // HH:MM, undefined if not yet returned
-}
-
-export type AttendanceStatus = "present" | "absent";
-
-// date (YYYY-MM-DD) -> staffId -> status
-export type AttendanceRecord = Record<string, Record<number, AttendanceStatus>>;
-
-// ── Cash Ledger ───────────────────────────────────────────────────────────────
-
-export type CashEntryType = "income" | "expense" | "ride";
-
-export interface CashEntry {
-  id: number;
-  date: string; // YYYY-MM-DD
-  type: CashEntryType;
-  amount: number;
-  description: string; // e.g. "Madam ne diya", "Bike Wala", staff name for rides
-  recipientStaffId?: number; // for ride type entries
   notes?: string;
 }
 
-// ── Home Service Settlement ───────────────────────────────────────────────────
-
-export interface HomeServiceSettlement {
+export interface PackDistribution {
   id: number;
-  date: string; // YYYY-MM-DD
+  packItemId: number;
   staffId: number;
-  clientName: string;
-  serviceAmount: number; // e.g. 2800 (actual service charge)
-  clientPaid: number; // e.g. 3000 (what client actually paid)
-  travelExpense: number; // e.g. 120 (auto/bike/hotel etc.)
+  quantity: number;
+  date: string; // YYYY-MM-DD
+  time: string; // HH:MM
   notes?: string;
-  // Computed: extra = clientPaid - serviceAmount (change to return to client or keep)
-  // Net to pay staff = extra - travelExpense (negative = office owes staff)
 }

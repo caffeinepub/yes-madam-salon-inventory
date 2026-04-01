@@ -6,6 +6,9 @@ import type {
   EquipmentCheckout,
   EquipmentItem,
   HomeServiceSettlement,
+  PackArrival,
+  PackDistribution,
+  PackItem,
   Product,
   ProductEdits,
   Staff,
@@ -26,16 +29,18 @@ const KEYS = {
   ATTENDANCE: "ym_attendance",
   CASH_ENTRIES: "ym_cash_entries",
   HOME_SERVICE_SETTLEMENTS: "ym_home_service_settlements",
+  PACK_ITEMS: "ym_pack_items",
+  PACK_ARRIVALS: "ym_pack_arrivals",
+  PACK_DISTRIBUTIONS: "ym_pack_distributions",
 } as const;
 
-// ── Categories ────────────────────────────────────────────────────────────────
+// ── Categories ────────────────────────────────────────────────────────────────────────────
 
 const DEFAULT_CATEGORIES: Category[] = [];
 
 export function getCategories(): Category[] {
   const stored = safeGet<Category[] | null>(KEYS.CATEGORIES, null);
   if (stored === null) {
-    // First time: return defaults but don't seed so user starts fresh
     return DEFAULT_CATEGORIES;
   }
   return stored;
@@ -59,7 +64,7 @@ export function deleteCategory(id: number): void {
   saveCategories(getCategories().filter((c) => c.id !== id));
 }
 
-// ── Products ──────────────────────────────────────────────────────────────────
+// ── Products ───────────────────────────────────────────────────────────────────────────
 
 export function getProducts(): Product[] {
   return safeGet<Product[]>(KEYS.PRODUCTS, []);
@@ -110,7 +115,7 @@ function safeSet<T>(key: string, value: T): void {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
-// ── Staff ─────────────────────────────────────────────────────────────────────
+// ── Staff ───────────────────────────────────────────────────────────────────────────────
 
 export function getStaff(): Staff[] {
   return safeGet<Staff[]>(KEYS.STAFF, []);
@@ -165,19 +170,18 @@ export function addUsageRecord(record: Omit<UsageRecord, "id">): UsageRecord {
     ...record,
   };
   saveUsageRecords([...records, next]);
-  // deduct stock
-  const overrides = getStockOverrides();
-  const current =
-    overrides[record.productId] !== undefined
-      ? overrides[record.productId]
-      : null;
-  if (current !== null) {
-    setStockOverride(record.productId, Math.max(0, current - record.quantity));
-  }
+  // Directly decrement product currentStock
+  saveProducts(
+    getProducts().map((p) =>
+      p.id === record.productId
+        ? { ...p, currentStock: Math.max(0, p.currentStock - record.quantity) }
+        : p,
+    ),
+  );
   return next;
 }
 
-// ── Stock Overrides ───────────────────────────────────────────────────────────
+// ── Stock Overrides ──────────────────────────────────────────────────────────────────
 
 export function getStockOverrides(): StockOverrides {
   return safeGet<StockOverrides>(KEYS.STOCK_OVERRIDES, {});
@@ -197,7 +201,7 @@ export function initStockOverride(productId: number, stock: number): void {
   }
 }
 
-// ── Product Edits ─────────────────────────────────────────────────────────────
+// ── Product Edits ─────────────────────────────────────────────────────────────────────
 
 export function getProductEdits(): ProductEdits {
   return safeGet<ProductEdits>(KEYS.PRODUCT_EDITS, {});
@@ -218,7 +222,7 @@ export function setProductEdit(
   safeSet(KEYS.PRODUCT_EDITS, edits);
 }
 
-// ── Rack Numbers ──────────────────────────────────────────────────────────────
+// ── Rack Numbers ───────────────────────────────────────────────────────────────────────
 
 export function getRackNumbers(): Record<number, string> {
   return safeGet<Record<number, string>>(KEYS.RACK_NUMBERS, {});
@@ -236,7 +240,7 @@ export function deleteProductEdit(productId: number): void {
   safeSet(KEYS.PRODUCT_EDITS, edits);
 }
 
-// ── Equipment Items ───────────────────────────────────────────────────────────
+// ── Equipment Items ──────────────────────────────────────────────────────────────────
 
 export function getEquipmentItems(): EquipmentItem[] {
   return safeGet<EquipmentItem[]>(KEYS.EQUIPMENT_ITEMS, []);
@@ -260,7 +264,7 @@ export function deleteEquipmentItem(id: number): void {
   saveEquipmentItems(getEquipmentItems().filter((i) => i.id !== id));
 }
 
-// ── Equipment Checkouts ───────────────────────────────────────────────────────
+// ── Equipment Checkouts ──────────────────────────────────────────────────────────────
 
 export function getEquipmentCheckouts(): EquipmentCheckout[] {
   return safeGet<EquipmentCheckout[]>(KEYS.EQUIPMENT_CHECKOUTS, []);
@@ -305,7 +309,7 @@ export function returnEquipmentCheckout(id: number): void {
   saveEquipmentCheckouts(records);
 }
 
-// ── Attendance ────────────────────────────────────────────────────────────────
+// ── Attendance ──────────────────────────────────────────────────────────────────────────
 
 export function getAttendanceRecord(): AttendanceRecord {
   return safeGet<AttendanceRecord>(KEYS.ATTENDANCE, {});
@@ -348,7 +352,7 @@ export function markAllPresentForDate(staffIds: number[], date: string): void {
   safeSet(KEYS.ATTENDANCE, record);
 }
 
-// ── Cash Ledger ───────────────────────────────────────────────────────────────
+// ── Cash Ledger ───────────────────────────────────────────────────────────────────────
 
 export function getCashEntries(): CashEntry[] {
   return safeGet<CashEntry[]>(KEYS.CASH_ENTRIES, []);
@@ -376,8 +380,6 @@ export function getCashEntriesForDate(date: string): CashEntry[] {
   return getCashEntries().filter((e) => e.date === date);
 }
 
-// Returns per-staff cumulative ride balance across all dates
-// balance = total amount that a staff gave (ride entries) - we track all rides per staff
 export function getRideBalanceByStaff(): Record<
   number,
   { totalAmount: number; entries: CashEntry[] }
@@ -395,7 +397,7 @@ export function getRideBalanceByStaff(): Record<
   return result;
 }
 
-// ── Home Service Settlements ──────────────────────────────────────────────────
+// ── Home Service Settlements ──────────────────────────────────────────────────────────
 
 export function getHomeServiceSettlements(): HomeServiceSettlement[] {
   return safeGet<HomeServiceSettlement[]>(KEYS.HOME_SERVICE_SETTLEMENTS, []);
@@ -432,5 +434,113 @@ export function getHomeServiceSettlementsForDate(
 }
 
 export function deleteUsageRecord(id: number): void {
-  saveUsageRecords(getUsageRecords().filter((r) => r.id !== id));
+  const records = getUsageRecords();
+  const deleted = records.find((r) => r.id === id);
+  if (deleted) {
+    // Restore product stock
+    saveProducts(
+      getProducts().map((p) =>
+        p.id === deleted.productId
+          ? { ...p, currentStock: p.currentStock + deleted.quantity }
+          : p,
+      ),
+    );
+  }
+  saveUsageRecords(records.filter((r) => r.id !== id));
+}
+
+// ── Pack Items ────────────────────────────────────────────────────────────────────────────
+
+export function getPackItems(): PackItem[] {
+  return safeGet<PackItem[]>(KEYS.PACK_ITEMS, []);
+}
+
+export function savePackItems(items: PackItem[]): void {
+  safeSet(KEYS.PACK_ITEMS, items);
+}
+
+export function addPackItem(name: string, unit: string): PackItem {
+  const items = getPackItems();
+  const next: PackItem = {
+    id: items.length > 0 ? Math.max(...items.map((i) => i.id)) + 1 : 1,
+    name,
+    unit,
+  };
+  savePackItems([...items, next]);
+  return next;
+}
+
+export function deletePackItem(id: number): void {
+  savePackItems(getPackItems().filter((i) => i.id !== id));
+}
+
+// ── Pack Arrivals ──────────────────────────────────────────────────────────────────────
+
+export function getPackArrivals(): PackArrival[] {
+  return safeGet<PackArrival[]>(KEYS.PACK_ARRIVALS, []);
+}
+
+export function savePackArrivals(arrivals: PackArrival[]): void {
+  safeSet(KEYS.PACK_ARRIVALS, arrivals);
+}
+
+export function addPackArrival(
+  packItemId: number,
+  quantity: number,
+  date: string,
+  notes?: string,
+): PackArrival {
+  const arrivals = getPackArrivals();
+  const next: PackArrival = {
+    id: arrivals.length > 0 ? Math.max(...arrivals.map((a) => a.id)) + 1 : 1,
+    packItemId,
+    quantity,
+    date,
+    notes,
+  };
+  savePackArrivals([...arrivals, next]);
+  return next;
+}
+
+export function deletePackArrival(id: number): void {
+  savePackArrivals(getPackArrivals().filter((a) => a.id !== id));
+}
+
+// ── Pack Distributions ─────────────────────────────────────────────────────────────
+
+export function getPackDistributions(): PackDistribution[] {
+  return safeGet<PackDistribution[]>(KEYS.PACK_DISTRIBUTIONS, []);
+}
+
+export function savePackDistributions(distributions: PackDistribution[]): void {
+  safeSet(KEYS.PACK_DISTRIBUTIONS, distributions);
+}
+
+export function addPackDistribution(
+  packItemId: number,
+  staffId: number,
+  quantity: number,
+  date: string,
+  time: string,
+  notes?: string,
+): PackDistribution {
+  const distributions = getPackDistributions();
+  const next: PackDistribution = {
+    id:
+      distributions.length > 0
+        ? Math.max(...distributions.map((d) => d.id)) + 1
+        : 1,
+    packItemId,
+    staffId,
+    quantity,
+    date,
+    time,
+    notes,
+  };
+  savePackDistributions([...distributions, next]);
+  return next;
+}
+
+export function deletePackDistribution(id: number): void {
+  savePackDistributions(getPackDistributions().filter((d) => d.id !== id));
 }

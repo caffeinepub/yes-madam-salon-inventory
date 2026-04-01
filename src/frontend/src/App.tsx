@@ -7,6 +7,7 @@ import { Categories } from "./pages/Categories";
 import { Charts } from "./pages/Charts";
 import { Dashboard } from "./pages/Dashboard";
 import { Equipment } from "./pages/Equipment";
+import PackTracker from "./pages/PackTracker";
 import { Products } from "./pages/Products";
 import { Staff } from "./pages/Staff";
 import { UsageEntry } from "./pages/UsageEntry";
@@ -19,6 +20,7 @@ type Route =
   | "/staff"
   | "/attendance"
   | "/equipment"
+  | "/pack-tracker"
   | "/usage"
   | "/usage-history"
   | "/charts"
@@ -33,6 +35,7 @@ function getHashRoute(): Route {
     "/staff",
     "/attendance",
     "/equipment",
+    "/pack-tracker",
     "/usage",
     "/usage-history",
     "/charts",
@@ -69,6 +72,8 @@ export default function App() {
         return <Attendance />;
       case "/equipment":
         return <Equipment />;
+      case "/pack-tracker":
+        return <PackTracker />;
       case "/usage":
         return <UsageEntry />;
       case "/usage-history":

@@ -1,79 +1,18 @@
-import type { Principal } from "@icp-sdk/core/principal";
-export interface Some<T> {
-    __kind__: "Some";
-    value: T;
-}
-export interface None {
-    __kind__: "None";
-}
-export type Option<T> = Some<T> | None;
-export interface EquipmentItem {
-    id: bigint;
-    name: string;
-}
-export interface HomeServiceSettlement {
-    id: bigint;
-    staffId: bigint;
-    clientName: string;
-    clientPaid: bigint;
-    date: string;
-    serviceAmount: bigint;
-    notes: string;
-    travelExpense: bigint;
-}
-export interface CashEntry {
-    id: bigint;
-    entryType: string;
-    date: string;
-    description: string;
-    recipientStaffId: bigint;
-    notes: string;
-    amount: bigint;
-}
-export interface EquipmentCheckout {
-    id: bigint;
-    staffId: bigint;
-    date: string;
-    takenAt: string;
-    equipmentId: bigint;
-    returnedAt: string;
-}
-export interface UsageRecord {
-    id: bigint;
-    categoryId: bigint;
-    staffId: bigint;
-    clientName: string;
-    date: string;
-    time: string;
-    productId: bigint;
-    quantity: bigint;
-}
-export interface Staff {
-    id: bigint;
-    name: string;
-    role: string;
-    mobile: string;
-}
-export interface AttendanceEntry {
-    id: bigint;
-    status: string;
-    staffId: bigint;
-    date: string;
-}
 export interface Category {
     id: bigint;
     name: string;
 }
 export interface Product {
     id: bigint;
+    name: string;
+    brand: string;
     categoryId: bigint;
     lowStockThreshold: bigint;
-    name: string;
     unit: string;
-    brand: string;
     currentStock: bigint;
     rackNumber: string;
     openingStock: bigint;
+    openingDate: string;
 }
 export interface backendInterface {
     addCashEntry(date: string, entryType: string, amount: bigint, description: string, recipientStaffId: bigint, notes: string): Promise<void>;
@@ -81,7 +20,7 @@ export interface backendInterface {
     addEquipmentCheckout(staffId: bigint, equipmentId: bigint, date: string, takenAt: string): Promise<void>;
     addEquipmentItem(name: string): Promise<EquipmentItem>;
     addHomeServiceSettlement(date: string, staffId: bigint, clientName: string, serviceAmount: bigint, clientPaid: bigint, travelExpense: bigint, notes: string): Promise<void>;
-    addProduct(name: string, categoryId: bigint, openingStock: bigint, unit: string, lowStockThreshold: bigint, rackNumber: string): Promise<Product>;
+    addProduct(name: string, categoryId: bigint, openingStock: bigint, openingDate: string, unit: string, lowStockThreshold: bigint, rackNumber: string): Promise<Product>;
     addStaff(name: string, role: string, mobile: string): Promise<Staff>;
     addUsageRecord(date: string, productId: bigint, categoryId: bigint, staffId: bigint, quantity: bigint, time: string, clientName: string): Promise<void>;
     clearAttendance(date: string, staffId: bigint): Promise<void>;
@@ -104,6 +43,59 @@ export interface backendInterface {
     markAllPresent(date: string, staffIds: Array<bigint>): Promise<void>;
     returnEquipmentCheckout(id: bigint, returnedAt: string): Promise<void>;
     setAttendance(date: string, staffId: bigint, status: string): Promise<void>;
-    updateProduct(id: bigint, name: string, categoryId: bigint, currentStock: bigint, unit: string, lowStockThreshold: bigint, rackNumber: string): Promise<void>;
+    updateProduct(id: bigint, name: string, categoryId: bigint, openingStock: bigint, openingDate: string, currentStock: bigint, unit: string, lowStockThreshold: bigint, rackNumber: string): Promise<void>;
     updateStaff(id: bigint, name: string, role: string, mobile: string): Promise<void>;
+}
+export interface Staff {
+    id: bigint;
+    name: string;
+    role: string;
+    mobile: string;
+}
+export interface UsageRecord {
+    id: bigint;
+    date: string;
+    productId: bigint;
+    categoryId: bigint;
+    staffId: bigint;
+    quantity: bigint;
+    time: string;
+    clientName: string;
+}
+export interface EquipmentItem {
+    id: bigint;
+    name: string;
+}
+export interface EquipmentCheckout {
+    id: bigint;
+    staffId: bigint;
+    equipmentId: bigint;
+    date: string;
+    takenAt: string;
+    returnedAt: string;
+}
+export interface AttendanceEntry {
+    id: bigint;
+    date: string;
+    staffId: bigint;
+    status: string;
+}
+export interface CashEntry {
+    id: bigint;
+    date: string;
+    entryType: string;
+    amount: bigint;
+    description: string;
+    recipientStaffId: bigint;
+    notes: string;
+}
+export interface HomeServiceSettlement {
+    id: bigint;
+    date: string;
+    staffId: bigint;
+    clientName: string;
+    serviceAmount: bigint;
+    clientPaid: bigint;
+    travelExpense: bigint;
+    notes: string;
 }

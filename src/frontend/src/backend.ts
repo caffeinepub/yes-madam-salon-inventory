@@ -186,7 +186,7 @@ export interface backendInterface {
     markAllPresent(date: string, staffIds: Array<bigint>): Promise<void>;
     returnEquipmentCheckout(id: bigint, returnedAt: string): Promise<void>;
     setAttendance(date: string, staffId: bigint, status: string): Promise<void>;
-    updateProduct(id: bigint, name: string, categoryId: bigint, currentStock: bigint, unit: string, lowStockThreshold: bigint, rackNumber: string): Promise<void>;
+    updateProduct(id: bigint, name: string, categoryId: bigint, openingStock: bigint, openingDate: string, currentStock: bigint, unit: string, lowStockThreshold: bigint, rackNumber: string): Promise<void>;
     updateStaff(id: bigint, name: string, role: string, mobile: string): Promise<void>;
 }
 export class Backend implements backendInterface {
@@ -583,17 +583,17 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async updateProduct(arg0: bigint, arg1: string, arg2: bigint, arg3: bigint, arg4: string, arg5: bigint, arg6: string): Promise<void> {
+    async updateProduct(arg0: bigint, arg1: string, arg2: bigint, arg3: bigint, arg4: string, arg5: bigint, arg6: string, arg7: bigint, arg8: string): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.updateProduct(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+                const result = await this.actor.updateProduct(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.updateProduct(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+            const result = await this.actor.updateProduct(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
             return result;
         }
     }

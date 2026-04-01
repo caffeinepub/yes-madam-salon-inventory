@@ -1,2 +1,7 @@
-# yes-madam-salon-inventory
-Exported from Caffeine project: Yes Madam Salon Inventory
+## 
+
+This source code has been exported from [Caffeine](https://caffeine.ai/)
+
+### Coming Soon
+
+We are working on tools to help you build locally and deploy your apps back to caffeine.

@@ -154,13 +154,13 @@ export function Equipment() {
 
   // Mutations
   const checkoutMutation = useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       staffId,
       equipmentId,
     }: {
       staffId: number;
       equipmentId: number;
-    }) => addEquipmentCheckout(staffId, equipmentId),
+    }) => Promise.resolve(addEquipmentCheckout(staffId, equipmentId)),
     onSuccess: (record) => {
       queryClient.invalidateQueries({ queryKey: ["equipment_checkouts"] });
       toast.success(`Checked out at ${record.takenAt}`);
@@ -171,7 +171,7 @@ export function Equipment() {
   });
 
   const addItemMutation = useMutation({
-    mutationFn: (name: string) => addEquipmentItem(name),
+    mutationFn: async (name: string) => Promise.resolve(addEquipmentItem(name)),
     onSuccess: (item) => {
       queryClient.invalidateQueries({ queryKey: ["equipment_items"] });
       toast.success(`"${item.name}" added`);
@@ -181,7 +181,9 @@ export function Equipment() {
   });
 
   const deleteItemMutation = useMutation({
-    mutationFn: (id: number) => deleteEquipmentItem(id),
+    mutationFn: async (id: number) => {
+      deleteEquipmentItem(id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["equipment_items"] });
       toast.success("Equipment item removed");
@@ -190,7 +192,9 @@ export function Equipment() {
   });
 
   const returnMutation = useMutation({
-    mutationFn: (id: number) => returnEquipmentCheckout(id),
+    mutationFn: async (id: number) => {
+      returnEquipmentCheckout(id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["equipment_checkouts"] });
       const now = new Date();

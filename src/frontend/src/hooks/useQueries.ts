@@ -62,11 +62,20 @@ export function useAddProduct() {
       name: string;
       categoryId: number;
       openingStock: number;
+      openingDate: string;
       unit: string;
       lowStockThreshold: number;
       rackNumber?: string;
     }) => {
-      return dsAddProduct(data);
+      return dsAddProduct({
+        name: data.name,
+        categoryId: data.categoryId,
+        openingStock: data.openingStock,
+        openingDate: data.openingDate,
+        unit: data.unit,
+        lowStockThreshold: data.lowStockThreshold,
+        rackNumber: data.rackNumber,
+      });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["products"] }),
   });
@@ -79,6 +88,8 @@ export function useUpdateProduct() {
       id: number;
       name: string;
       categoryId: number;
+      openingStock: number;
+      openingDate: string;
       unit: string;
       lowStockThreshold: number;
       currentStock: number;
@@ -87,6 +98,8 @@ export function useUpdateProduct() {
       await dsUpdateProduct(data.id, {
         name: data.name,
         categoryId: data.categoryId,
+        openingStock: data.openingStock,
+        openingDate: data.openingDate,
         unit: data.unit,
         lowStockThreshold: data.lowStockThreshold,
         currentStock: data.currentStock,
