@@ -3,6 +3,7 @@ import {
   BarChart2,
   CalendarCheck,
   ClipboardList,
+  Copy,
   History,
   LayoutDashboard,
   Package,
@@ -14,6 +15,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 type Route =
   | "/"
@@ -26,7 +28,8 @@ type Route =
   | "/usage"
   | "/usage-history"
   | "/charts"
-  | "/cash-ledger";
+  | "/cash-ledger"
+  | "/boss-report";
 
 interface NavItem {
   to: Route;
@@ -144,6 +147,18 @@ function LiveClock() {
   );
 }
 
+function copyBossLink() {
+  const url = `${window.location.origin}${window.location.pathname}#/boss-report`;
+  navigator.clipboard
+    .writeText(url)
+    .then(() => {
+      toast.success("Link copy ho gaya! Boss ko bhej do 📋");
+    })
+    .catch(() => {
+      toast.error(`Link copy nahi hua, manually copy karo: ${url}`);
+    });
+}
+
 export function AppLayout({
   children,
   currentRoute,
@@ -205,6 +220,20 @@ export function AppLayout({
 
         {/* Live Clock */}
         <LiveClock />
+
+        {/* Boss Report link button */}
+        <div className="px-3 pb-2">
+          <button
+            type="button"
+            data-ocid="sidebar.boss_report.button"
+            onClick={copyBossLink}
+            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-md text-sm font-bold transition-colors"
+            style={{ backgroundColor: "#ff1493", color: "white" }}
+          >
+            <Copy size={15} />
+            Boss ka Link 📋
+          </button>
+        </div>
 
         {/* Footer */}
         <div className="px-4 py-4 border-t" style={{ borderColor: "#222" }}>

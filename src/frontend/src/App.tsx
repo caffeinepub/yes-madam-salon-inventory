@@ -2,6 +2,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { useEffect, useState } from "react";
 import { AppLayout } from "./components/AppLayout";
 import { Attendance } from "./pages/Attendance";
+import { BossReport } from "./pages/BossReport";
 import { CashLedger } from "./pages/CashLedger";
 import { Categories } from "./pages/Categories";
 import { Charts } from "./pages/Charts";
@@ -24,7 +25,8 @@ type Route =
   | "/usage"
   | "/usage-history"
   | "/charts"
-  | "/cash-ledger";
+  | "/cash-ledger"
+  | "/boss-report";
 
 function getHashRoute(): Route {
   const hash = window.location.hash.replace("#", "") || "/";
@@ -40,6 +42,7 @@ function getHashRoute(): Route {
     "/usage-history",
     "/charts",
     "/cash-ledger",
+    "/boss-report",
   ];
   return valid.includes(hash as Route) ? (hash as Route) : "/";
 }
@@ -86,6 +89,15 @@ export default function App() {
         return <Dashboard />;
     }
   };
+
+  if (route === "/boss-report") {
+    return (
+      <>
+        <Toaster richColors position="top-right" />
+        <BossReport />
+      </>
+    );
+  }
 
   return (
     <>
