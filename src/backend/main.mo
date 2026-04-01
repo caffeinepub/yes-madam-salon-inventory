@@ -40,11 +40,21 @@ actor {
     rackNumber : Text;
   };
 
+  // Legacy Staff type (without pinned) - matches previous stable var shape
+  type StaffV1 = {
+    id : Nat;
+    name : Text;
+    role : Text;
+    mobile : Text;
+  };
+
+  // Current Staff type (with pinned)
   type Staff = {
     id : Nat;
     name : Text;
     role : Text;
     mobile : Text;
+    pinned : Bool;
   };
 
   type UsageRecord = {
@@ -100,6 +110,31 @@ actor {
     notes : Text;
   };
 
+  // Pack Tracker types
+  type PackItem = {
+    id : Nat;
+    name : Text;
+    unit : Text;
+  };
+
+  type PackStock = {
+    id : Nat;
+    itemId : Nat;
+    date : Text;
+    quantity : Nat;
+    notes : Text;
+  };
+
+  type PackUsage = {
+    id : Nat;
+    itemId : Nat;
+    date : Text;
+    time : Text;
+    staffId : Nat;
+    quantity : Nat;
+    notes : Text;
+  };
+
   // Stable storage
 
   stable var categories : [Category] = [];
@@ -107,13 +142,19 @@ actor {
   stable var products : [ProductV1] = [];
   // New stable var - holds products with openingDate
   stable var products_v2 : [Product] = [];
-  stable var staff : [Staff] = [];
+  // Legacy staff WITHOUT pinned field - kept for migration compatibility
+  stable var staff : [StaffV1] = [];
+  // Current staff WITH pinned field
+  stable var staff_v2 : [Staff] = [];
   stable var usageRecords : [UsageRecord] = [];
   stable var equipmentItems : [EquipmentItem] = [];
   stable var equipmentCheckouts : [EquipmentCheckout] = [];
   stable var attendanceEntries : [AttendanceEntry] = [];
   stable var cashEntries : [CashEntry] = [];
   stable var homeServiceSettlements : [HomeServiceSettlement] = [];
+  stable var packItems : [PackItem] = [];
+  stable var packStocks : [PackStock] = [];
+  stable var packUsages : [PackUsage] = [];
 
   stable var nextCategoryId : Nat = 1;
   stable var nextProductId : Nat = 1;
@@ -124,9 +165,13 @@ actor {
   stable var nextAttendanceId : Nat = 1;
   stable var nextCashEntryId : Nat = 1;
   stable var nextHomeServiceSettlementId : Nat = 1;
+  stable var nextPackItemId : Nat = 1;
+  stable var nextPackStockId : Nat = 1;
+  stable var nextPackUsageId : Nat = 1;
 
-  // Migration: on upgrade, move old products (without openingDate) to products_v2
+  // Migration: on upgrade, move old data to new versions
   system func postupgrade() {
+    // Migrate products without openingDate
     if (products.size() > 0) {
       let migrated = products.map(func(p : ProductV1) : Product {
         {
@@ -145,6 +190,20 @@ actor {
       products_v2 := products_v2.concat(migrated);
       products := [];
     };
+    // Migrate staff without pinned field to staff_v2 with pinned=false
+    if (staff.size() > 0) {
+      let migratedStaff = staff.map(func(s : StaffV1) : Staff {
+        {
+          id = s.id;
+          name = s.name;
+          role = s.role;
+          mobile = s.mobile;
+          pinned = false;
+        }
+      });
+      staff_v2 := staff_v2.concat(migratedStaff);
+      staff := [];
+    };
   };
 
   // Category APIs
@@ -158,17 +217,13 @@ actor {
       id = nextCategoryId;
       name;
     };
-
-    let newCategories = categories.concat([category]);
-    categories := newCategories;
+    categories := categories.concat([category]);
     nextCategoryId += 1;
-
     category;
   };
 
   public shared ({ caller }) func deleteCategory(id : Nat) : async () {
-    let newCategories = categories.filter(func(c) { c.id != id });
-    categories := newCategories;
+    categories := categories.filter(func(c) { c.id != id });
   };
 
   // Product APIs
@@ -198,11 +253,8 @@ actor {
       lowStockThreshold;
       rackNumber;
     };
-
-    let newProducts = products_v2.concat([product]);
-    products_v2 := newProducts;
+    products_v2 := products_v2.concat([product]);
     nextProductId += 1;
-
     product;
   };
 
@@ -217,81 +269,75 @@ actor {
     lowStockThreshold : Nat,
     rackNumber : Text,
   ) : async () {
-    let newProducts = products_v2.map(
+    products_v2 := products_v2.map(
       func(p) {
         if (p.id == id) {
-          {
-            id;
-            name;
-            brand = p.brand;
-            categoryId;
-            openingStock;
-            openingDate;
-            currentStock;
-            unit;
-            lowStockThreshold;
-            rackNumber;
-          };
-        } else {
-          p;
-        };
+          { id; name; brand = p.brand; categoryId; openingStock; openingDate; currentStock; unit; lowStockThreshold; rackNumber };
+        } else { p };
       }
     );
-    products_v2 := newProducts;
   };
 
   public shared ({ caller }) func deleteProduct(id : Nat) : async () {
-    let newProducts = products_v2.filter(func(p) { p.id != id });
-    products_v2 := newProducts;
+    products_v2 := products_v2.filter(func(p) { p.id != id });
   };
 
   // Staff APIs
 
   public query ({ caller }) func getStaff() : async [Staff] {
-    staff;
+    staff_v2;
   };
 
   public shared ({ caller }) func addStaff(name : Text, role : Text, mobile : Text) : async Staff {
-    let newStaffs = staff.concat([
-      {
-        id = nextStaffId;
-        name;
-        role;
-        mobile;
-      },
-    ]);
-    staff := newStaffs;
-    nextStaffId += 1;
-
-    {
-      id = nextStaffId - 1;
+    let newStaff : Staff = {
+      id = nextStaffId;
       name;
       role;
       mobile;
+      pinned = false;
     };
+    staff_v2 := staff_v2.concat([newStaff]);
+    nextStaffId += 1;
+    newStaff;
   };
 
   public shared ({ caller }) func updateStaff(id : Nat, name : Text, role : Text, mobile : Text) : async () {
-    let newStaffs = staff.map(
+    staff_v2 := staff_v2.map(
       func(s) {
-        if (s.id == id) {
-          {
-            id;
-            name;
-            role;
-            mobile;
-          };
-        } else {
-          s;
-        };
+        if (s.id == id) { { id; name; role; mobile; pinned = s.pinned } } else { s };
       }
     );
-    staff := newStaffs;
+  };
+
+  public shared ({ caller }) func updateStaffPin(id : Nat, pinned : Bool) : async () {
+    staff_v2 := staff_v2.map(
+      func(s) {
+        if (s.id == id) { { id = s.id; name = s.name; role = s.role; mobile = s.mobile; pinned } } else { s };
+      }
+    );
+  };
+
+  public shared ({ caller }) func bulkAddStaff(names : [Text], role : Text) : async [Staff] {
+    var added : [Staff] = [];
+    for (name in names.vals()) {
+      if (name != "") {
+        let newStaff : Staff = {
+          id = nextStaffId;
+          name;
+          role;
+          mobile = "";
+          pinned = false;
+        };
+        staff_v2 := staff_v2.concat([newStaff]);
+        added := added.concat([newStaff]);
+        nextStaffId += 1;
+      };
+    };
+    added;
   };
 
   public shared ({ caller }) func deleteStaff(id : Nat) : async () {
-    let newStaffs = staff.filter(func(s) { s.id != id });
-    staff := newStaffs;
+    staff_v2 := staff_v2.filter(func(s) { s.id != id });
   };
 
   // UsageRecord APIs
@@ -319,38 +365,21 @@ actor {
       time;
       clientName;
     };
-
-    let newUsageRecords = usageRecords.concat([usageRecord]);
-    usageRecords := newUsageRecords;
+    usageRecords := usageRecords.concat([usageRecord]);
     nextUsageId += 1;
 
     // Decrease product stock automatically
-    let newProducts = products_v2.map(
+    products_v2 := products_v2.map(
       func(p) {
         if (p.id == productId) {
           let newStock = if (p.currentStock >= quantity) { p.currentStock - quantity } else { 0 };
-          {
-            id = p.id;
-            name = p.name;
-            brand = p.brand;
-            categoryId = p.categoryId;
-            openingStock = p.openingStock;
-            openingDate = p.openingDate;
-            currentStock = newStock;
-            unit = p.unit;
-            lowStockThreshold = p.lowStockThreshold;
-            rackNumber = p.rackNumber;
-          };
-        } else {
-          p;
-        };
+          { id = p.id; name = p.name; brand = p.brand; categoryId = p.categoryId; openingStock = p.openingStock; openingDate = p.openingDate; currentStock = newStock; unit = p.unit; lowStockThreshold = p.lowStockThreshold; rackNumber = p.rackNumber };
+        } else { p };
       }
     );
-    products_v2 := newProducts;
   };
 
   public shared ({ caller }) func deleteUsageRecord(id : Nat) : async () {
-    // Restore stock when usage record is deleted
     var deletedProductId : Nat = 0;
     var deletedQuantity : Nat = 0;
     for (u in usageRecords.vals()) {
@@ -360,30 +389,15 @@ actor {
       };
     };
     if (deletedProductId != 0 or deletedQuantity != 0) {
-      let newProducts = products_v2.map(
+      products_v2 := products_v2.map(
         func(p) {
           if (p.id == deletedProductId) {
-            {
-              id = p.id;
-              name = p.name;
-              brand = p.brand;
-              categoryId = p.categoryId;
-              openingStock = p.openingStock;
-              openingDate = p.openingDate;
-              currentStock = p.currentStock + deletedQuantity;
-              unit = p.unit;
-              lowStockThreshold = p.lowStockThreshold;
-              rackNumber = p.rackNumber;
-            };
-          } else {
-            p;
-          };
+            { id = p.id; name = p.name; brand = p.brand; categoryId = p.categoryId; openingStock = p.openingStock; openingDate = p.openingDate; currentStock = p.currentStock + deletedQuantity; unit = p.unit; lowStockThreshold = p.lowStockThreshold; rackNumber = p.rackNumber };
+          } else { p };
         }
       );
-      products_v2 := newProducts;
     };
-    let newUsageRecords = usageRecords.filter(func(u) { u.id != id });
-    usageRecords := newUsageRecords;
+    usageRecords := usageRecords.filter(func(u) { u.id != id });
   };
 
   // Equipment APIs
@@ -393,21 +407,14 @@ actor {
   };
 
   public shared ({ caller }) func addEquipmentItem(name : Text) : async EquipmentItem {
-    let equipmentItem : EquipmentItem = {
-      id = nextEquipmentItemId;
-      name;
-    };
-
-    let newEquipmentItems = equipmentItems.concat([equipmentItem]);
-    equipmentItems := newEquipmentItems;
+    let equipmentItem : EquipmentItem = { id = nextEquipmentItemId; name };
+    equipmentItems := equipmentItems.concat([equipmentItem]);
     nextEquipmentItemId += 1;
-
     equipmentItem;
   };
 
   public shared ({ caller }) func deleteEquipmentItem(id : Nat) : async () {
-    let newEquipmentItems = equipmentItems.filter(func(e) { e.id != id });
-    equipmentItems := newEquipmentItems;
+    equipmentItems := equipmentItems.filter(func(e) { e.id != id });
   };
 
   public query ({ caller }) func getEquipmentCheckouts() : async [EquipmentCheckout] {
@@ -415,38 +422,17 @@ actor {
   };
 
   public shared ({ caller }) func addEquipmentCheckout(staffId : Nat, equipmentId : Nat, date : Text, takenAt : Text) : async () {
-    let checkout : EquipmentCheckout = {
-      id = nextEquipmentCheckoutId;
-      staffId;
-      equipmentId;
-      date;
-      takenAt;
-      returnedAt = "";
-    };
-
-    let newCheckouts = equipmentCheckouts.concat([checkout]);
-    equipmentCheckouts := newCheckouts;
+    let checkout : EquipmentCheckout = { id = nextEquipmentCheckoutId; staffId; equipmentId; date; takenAt; returnedAt = "" };
+    equipmentCheckouts := equipmentCheckouts.concat([checkout]);
     nextEquipmentCheckoutId += 1;
   };
 
   public shared ({ caller }) func returnEquipmentCheckout(id : Nat, returnedAt : Text) : async () {
-    let newCheckouts = equipmentCheckouts.map(
+    equipmentCheckouts := equipmentCheckouts.map(
       func(e) {
-        if (e.id == id) {
-          {
-            id = e.id;
-            staffId = e.staffId;
-            equipmentId = e.equipmentId;
-            date = e.date;
-            takenAt = e.takenAt;
-            returnedAt;
-          };
-        } else {
-          e;
-        };
+        if (e.id == id) { { id = e.id; staffId = e.staffId; equipmentId = e.equipmentId; date = e.date; takenAt = e.takenAt; returnedAt } } else { e };
       }
     );
-    equipmentCheckouts := newCheckouts;
   };
 
   // Attendance APIs
@@ -456,25 +442,13 @@ actor {
   };
 
   public shared ({ caller }) func setAttendance(date : Text, staffId : Nat, status : Text) : async () {
-    let attendance : AttendanceEntry = {
-      id = nextAttendanceId;
-      date;
-      staffId;
-      status;
-    };
-
-    let newEntries = attendanceEntries.concat([attendance]);
-    attendanceEntries := newEntries;
+    let attendance : AttendanceEntry = { id = nextAttendanceId; date; staffId; status };
+    attendanceEntries := attendanceEntries.concat([attendance]);
     nextAttendanceId += 1;
   };
 
   public shared ({ caller }) func clearAttendance(date : Text, staffId : Nat) : async () {
-    let newEntries = attendanceEntries.filter(
-      func(a) {
-        a.date != date or a.staffId != staffId;
-      }
-    );
-    attendanceEntries := newEntries;
+    attendanceEntries := attendanceEntries.filter(func(a) { a.date != date or a.staffId != staffId });
   };
 
   public shared ({ caller }) func markAllPresent(date : Text, staffIds : [Nat]) : async () {
@@ -497,24 +471,13 @@ actor {
     recipientStaffId : Nat,
     notes : Text,
   ) : async () {
-    let cashEntry : CashEntry = {
-      id = nextCashEntryId;
-      date;
-      entryType;
-      amount;
-      description;
-      recipientStaffId;
-      notes;
-    };
-
-    let newCashEntries = cashEntries.concat([cashEntry]);
-    cashEntries := newCashEntries;
+    let cashEntry : CashEntry = { id = nextCashEntryId; date; entryType; amount; description; recipientStaffId; notes };
+    cashEntries := cashEntries.concat([cashEntry]);
     nextCashEntryId += 1;
   };
 
   public shared ({ caller }) func deleteCashEntry(id : Nat) : async () {
-    let newCashEntries = cashEntries.filter(func(c) { c.id != id });
-    cashEntries := newCashEntries;
+    cashEntries := cashEntries.filter(func(c) { c.id != id });
   };
 
   // Home Service Settlements APIs
@@ -532,24 +495,53 @@ actor {
     travelExpense : Nat,
     notes : Text,
   ) : async () {
-    let settlement : HomeServiceSettlement = {
-      id = nextHomeServiceSettlementId;
-      date;
-      staffId;
-      clientName;
-      serviceAmount;
-      clientPaid;
-      travelExpense;
-      notes;
-    };
-
-    let newSettlements = homeServiceSettlements.concat([settlement]);
-    homeServiceSettlements := newSettlements;
+    let settlement : HomeServiceSettlement = { id = nextHomeServiceSettlementId; date; staffId; clientName; serviceAmount; clientPaid; travelExpense; notes };
+    homeServiceSettlements := homeServiceSettlements.concat([settlement]);
     nextHomeServiceSettlementId += 1;
   };
 
   public shared ({ caller }) func deleteHomeServiceSettlement(id : Nat) : async () {
-    let newSettlements = homeServiceSettlements.filter(func(h) { h.id != id });
-    homeServiceSettlements := newSettlements;
+    homeServiceSettlements := homeServiceSettlements.filter(func(h) { h.id != id });
+  };
+
+  // Pack Tracker APIs
+
+  public query ({ caller }) func getPackItems() : async [PackItem] {
+    packItems;
+  };
+
+  public shared ({ caller }) func addPackItem(name : Text, unit : Text) : async PackItem {
+    let item : PackItem = { id = nextPackItemId; name; unit };
+    packItems := packItems.concat([item]);
+    nextPackItemId += 1;
+    item;
+  };
+
+  public shared ({ caller }) func deletePackItem(id : Nat) : async () {
+    packItems := packItems.filter(func(p) { p.id != id });
+  };
+
+  public query ({ caller }) func getPackStocks() : async [PackStock] {
+    packStocks;
+  };
+
+  public shared ({ caller }) func addPackStock(itemId : Nat, date : Text, quantity : Nat, notes : Text) : async () {
+    let s : PackStock = { id = nextPackStockId; itemId; date; quantity; notes };
+    packStocks := packStocks.concat([s]);
+    nextPackStockId += 1;
+  };
+
+  public query ({ caller }) func getPackUsages() : async [PackUsage] {
+    packUsages;
+  };
+
+  public shared ({ caller }) func addPackUsage(itemId : Nat, date : Text, time : Text, staffId : Nat, quantity : Nat, notes : Text) : async () {
+    let u : PackUsage = { id = nextPackUsageId; itemId; date; time; staffId; quantity; notes };
+    packUsages := packUsages.concat([u]);
+    nextPackUsageId += 1;
+  };
+
+  public shared ({ caller }) func deletePackUsage(id : Nat) : async () {
+    packUsages := packUsages.filter(func(u) { u.id != id });
   };
 };

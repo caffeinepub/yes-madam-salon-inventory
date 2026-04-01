@@ -65,6 +65,10 @@ import type { AttendanceStatus } from "../types";
 
 const CHART_COLORS = ["#e91e8c", "#7c3aed", "#0ea5e9", "#10b981", "#f59e0b"];
 
+const staffCode = (id: bigint) => `S${Number(id).toString().padStart(3, "0")}`;
+const productCode = (id: bigint) =>
+  `P${Number(id).toString().padStart(3, "0")}`;
+
 function getTodayDate() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -175,8 +179,12 @@ export function Dashboard() {
 
   const filteredQProducts = useMemo(() => {
     if (!productSearch.trim()) return activeProducts;
-    return activeProducts.filter((p) =>
-      p.name.toLowerCase().includes(productSearch.toLowerCase()),
+    return activeProducts.filter(
+      (p) =>
+        p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+        productCode(BigInt(p.id))
+          .toLowerCase()
+          .includes(productSearch.toLowerCase()),
     );
   }, [activeProducts, productSearch]);
 
@@ -185,7 +193,10 @@ export function Dashboard() {
     return staff.filter(
       (s) =>
         s.name.toLowerCase().includes(staffSearch.toLowerCase()) ||
-        s.role.toLowerCase().includes(staffSearch.toLowerCase()),
+        s.role.toLowerCase().includes(staffSearch.toLowerCase()) ||
+        staffCode(BigInt(s.id))
+          .toLowerCase()
+          .includes(staffSearch.toLowerCase()),
     );
   }, [staff, staffSearch]);
 
@@ -495,6 +506,9 @@ export function Dashboard() {
                               setProductPopoverOpen(false);
                             }}
                           >
+                            <span className="font-mono text-xs text-pink-500 mr-1">
+                              [{productCode(BigInt(p.id))}]
+                            </span>
                             <span>{p.name}</span>
                             <span className="ml-2 text-muted-foreground text-xs">
                               (Stock: {p.currentStock} {p.unit})
@@ -563,6 +577,9 @@ export function Dashboard() {
                               setStaffPopoverOpen(false);
                             }}
                           >
+                            <span className="font-mono text-xs text-pink-500 mr-1">
+                              [{staffCode(BigInt(s.id))}]
+                            </span>
                             <span>{s.name}</span>
                             <span className="ml-2 text-muted-foreground text-xs">
                               — {s.role}

@@ -61,6 +61,9 @@ import {
 
 const PAGE_SIZE = 10;
 
+const productCode = (id: bigint) =>
+  `P${Number(id).toString().padStart(3, "0")}`;
+
 function todayDate() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -787,6 +790,28 @@ export function Products() {
           Paste from Excel
         </Button>
         <Button
+          data-ocid="products.clear_all_button"
+          variant="destructive"
+          onClick={async () => {
+            if (
+              !window.confirm(
+                "Kya aap SACH MEIN sab products delete karna chahte ho? Ye action undo nahi ho sakti.",
+              )
+            )
+              return;
+            for (const p of products) {
+              try {
+                await deleteMutation.mutateAsync(p.id);
+              } catch {
+                /* ignore */
+              }
+            }
+            toast.success("Sab products delete ho gaye");
+          }}
+        >
+          Sab Products Hatao
+        </Button>
+        <Button
           data-ocid="products.add_button"
           onClick={openAdd}
           className="ml-auto"
@@ -801,6 +826,7 @@ export function Products() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/40">
+              <TableHead className="text-xs">Code</TableHead>
               <TableHead className="text-xs">Name</TableHead>
               <TableHead className="text-xs">Category</TableHead>
               <TableHead className="text-xs">Brand</TableHead>
@@ -841,7 +867,7 @@ export function Products() {
               ))
             ) : paginated.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={10}>
+                <TableCell colSpan={11}>
                   <div
                     data-ocid="products.empty_state"
                     className="text-center py-10 text-muted-foreground text-sm"
@@ -860,6 +886,9 @@ export function Products() {
                     data-ocid={`products.item.${ocidIdx}`}
                     className={isLow ? "low-stock-row" : ""}
                   >
+                    <TableCell className="font-mono text-xs font-bold text-pink-500">
+                      {productCode(BigInt(product.id))}
+                    </TableCell>
                     <TableCell className="font-medium text-sm">
                       <div className="flex items-center gap-2">
                         {product.name}
