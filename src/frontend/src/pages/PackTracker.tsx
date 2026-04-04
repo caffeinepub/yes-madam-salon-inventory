@@ -16,22 +16,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getStaff } from "@/lib/dataService";
-import {
-  addPackArrival,
-  addPackDistribution,
-  addPackItem,
-  deletePackArrival,
-  deletePackDistribution,
-  deletePackItem,
-  getPackArrivals,
-  getPackDistributions,
-  getPackItems,
-} from "@/lib/localStorage";
 import type { PackArrival, PackDistribution, PackItem } from "@/types";
 import {
   BoxesIcon,
   Download,
+  Loader2,
   Package,
   Plus,
   Trash2,
@@ -39,6 +28,18 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import {
+  useAddPackArrival,
+  useAddPackDistribution,
+  useAddPackItem,
+  useDeletePackArrival,
+  useDeletePackDistribution,
+  useDeletePackItem,
+  usePackArrivals,
+  usePackDistributions,
+  usePackItems,
+  useStaff,
+} from "../hooks/useQueries";
 
 function todayDate() {
   return new Date().toISOString().slice(0, 10);
@@ -79,15 +80,21 @@ function downloadCSV(
 }
 
 export default function PackTracker() {
-  // ── State ──────────────────────────────────────────────────────────────────
-  const [packItems, setPackItems] = useState<PackItem[]>(() => getPackItems());
-  const [arrivals, setArrivals] = useState<PackArrival[]>(() =>
-    getPackArrivals(),
-  );
-  const [distributions, setDistributions] = useState<PackDistribution[]>(() =>
-    getPackDistributions(),
-  );
-  const staffList = useMemo(() => getStaff(), []);
+  // ── Data hooks ──────────────────────────────────────────────────────────
+  const { data: packItems = [], isLoading: itemsLoading } = usePackItems();
+  const { data: arrivals = [], isLoading: arrivalsLoading } = usePackArrivals();
+  const { data: distributions = [], isLoading: distLoading } =
+    usePackDistributions();
+  const { data: staffList = [] } = useStaff();
+
+  const addItemMutation = useAddPackItem();
+  const deleteItemMutation = useDeletePackItem();
+  const addArrivalMutation = useAddPackArrival();
+  const deleteArrivalMutation = useDeletePackArrival();
+  const addDistMutation = useAddPackDistribution();
+  const deleteDistMutation = useDeletePackDistribution();
+
+  const isLoading = itemsLoading || arrivalsLoading || distLoading;
 
   // Add item form
   const [newItemName, setNewItemName] = useState("");
@@ -110,7 +117,11 @@ export default function PackTracker() {
   const [distSearch, setDistSearch] = useState("");
 
   const itemMap = useMemo(
-    () => Object.fromEntries(packItems.map((i) => [i.id, i])),
+    () =>
+      Object.fromEntries(packItems.map((i) => [i.id, i])) as Record<
+        number,
+        PackItem
+      >,
     [packItems],
   );
   const staffMap = useMemo(
@@ -140,7 +151,7 @@ export default function PackTracker() {
     if (!arrSearch) return arrivals;
     const q = arrSearch.toLowerCase();
     return arrivals.filter(
-      (a) =>
+      (a: PackArrival) =>
         (itemMap[a.packItemId]?.name ?? "").toLowerCase().includes(q) ||
         (a.notes ?? "").toLowerCase().includes(q) ||
         a.date.includes(q),
@@ -151,7 +162,7 @@ export default function PackTracker() {
     if (!distSearch) return distributions;
     const q = distSearch.toLowerCase();
     return distributions.filter(
-      (d) =>
+      (d: PackDistribution) =>
         (itemMap[d.packItemId]?.name ?? "").toLowerCase().includes(q) ||
         (staffMap[d.staffId] ?? "").toLowerCase().includes(q) ||
         (d.notes ?? "").toLowerCase().includes(q) ||
@@ -159,8 +170,8 @@ export default function PackTracker() {
     );
   }, [distributions, distSearch, itemMap, staffMap]);
 
-  // ── Handlers ───────────────────────────────────────────────────────────────
-  const handleAddItem = () => {
+  // ── Handlers ──────────────────────────────────────────────────────────────
+  const handleAddItem = async () => {
     if (!newItemName.trim()) {
       toast.error("Item ka naam daalein");
       return;
@@ -169,22 +180,29 @@ export default function PackTracker() {
       toast.error("Unit daalein (jaise pcs, ml, gm)");
       return;
     }
-    addPackItem(newItemName.trim(), newItemUnit.trim());
-    setPackItems(getPackItems());
-    setNewItemName("");
-    setNewItemUnit("");
-    toast.success("Item add ho gaya");
+    try {
+      await addItemMutation.mutateAsync({
+        name: newItemName.trim(),
+        unit: newItemUnit.trim(),
+      });
+      setNewItemName("");
+      setNewItemUnit("");
+      toast.success("Item add ho gaya");
+    } catch {
+      toast.error("Item add karne mein problem aai");
+    }
   };
 
-  const handleDeleteItem = (id: number) => {
-    deletePackItem(id);
-    setPackItems(getPackItems());
-    setArrivals(getPackArrivals());
-    setDistributions(getPackDistributions());
-    toast.success("Item delete ho gaya");
+  const handleDeleteItem = async (id: number) => {
+    try {
+      await deleteItemMutation.mutateAsync(id);
+      toast.success("Item delete ho gaya");
+    } catch {
+      toast.error("Delete karne mein problem aai");
+    }
   };
 
-  const handleAddArrival = () => {
+  const handleAddArrival = async () => {
     if (!arrItemId) {
       toast.error("Item chunein");
       return;
@@ -198,25 +216,31 @@ export default function PackTracker() {
       toast.error("Date daalein");
       return;
     }
-    addPackArrival(
-      Number(arrItemId),
-      qty,
-      arrDate,
-      arrNotes.trim() || undefined,
-    );
-    setArrivals(getPackArrivals());
-    setArrQty("");
-    setArrNotes("");
-    toast.success("Maal darj ho gaya");
+    try {
+      await addArrivalMutation.mutateAsync({
+        packItemId: Number(arrItemId),
+        quantity: qty,
+        date: arrDate,
+        notes: arrNotes.trim() || undefined,
+      });
+      setArrQty("");
+      setArrNotes("");
+      toast.success("Maal darj ho gaya");
+    } catch {
+      toast.error("Maal darj karne mein problem aai");
+    }
   };
 
-  const handleDeleteArrival = (id: number) => {
-    deletePackArrival(id);
-    setArrivals(getPackArrivals());
-    toast.success("Entry delete ho gayi");
+  const handleDeleteArrival = async (id: number) => {
+    try {
+      await deleteArrivalMutation.mutateAsync(id);
+      toast.success("Entry delete ho gayi");
+    } catch {
+      toast.error("Delete karne mein problem aai");
+    }
   };
 
-  const handleAddDistribution = () => {
+  const handleAddDistribution = async () => {
     if (!distItemId) {
       toast.error("Item chunein");
       return;
@@ -238,26 +262,41 @@ export default function PackTracker() {
       toast.error("Time daalein");
       return;
     }
-    addPackDistribution(
-      Number(distItemId),
-      Number(distStaffId),
-      qty,
-      distDate,
-      distTime,
-      distNotes.trim() || undefined,
-    );
-    setDistributions(getPackDistributions());
-    setDistQty("");
-    setDistNotes("");
-    setDistTime(nowTime());
-    toast.success("Distribution darj ho gaya");
+    try {
+      await addDistMutation.mutateAsync({
+        packItemId: Number(distItemId),
+        staffId: Number(distStaffId),
+        quantity: qty,
+        date: distDate,
+        time: distTime,
+        notes: distNotes.trim() || undefined,
+      });
+      setDistQty("");
+      setDistNotes("");
+      setDistTime(nowTime());
+      toast.success("Distribution darj ho gaya");
+    } catch {
+      toast.error("Distribution darj karne mein problem aai");
+    }
   };
 
-  const handleDeleteDistribution = (id: number) => {
-    deletePackDistribution(id);
-    setDistributions(getPackDistributions());
-    toast.success("Entry delete ho gayi");
+  const handleDeleteDistribution = async (id: number) => {
+    try {
+      await deleteDistMutation.mutateAsync(id);
+      toast.success("Entry delete ho gayi");
+    } catch {
+      toast.error("Delete karne mein problem aai");
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="p-8 flex items-center justify-center gap-3 text-muted-foreground">
+        <Loader2 size={20} className="animate-spin text-primary" />
+        <span>Data load ho raha hai...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 space-y-8">
@@ -321,8 +360,16 @@ export default function PackTracker() {
             className="w-40"
             onKeyDown={(e) => e.key === "Enter" && handleAddItem()}
           />
-          <Button data-ocid="pack.add_item.button" onClick={handleAddItem}>
-            <Plus size={15} className="mr-1.5" />
+          <Button
+            data-ocid="pack.add_item.button"
+            onClick={handleAddItem}
+            disabled={addItemMutation.isPending}
+          >
+            {addItemMutation.isPending ? (
+              <Loader2 size={15} className="mr-1.5 animate-spin" />
+            ) : (
+              <Plus size={15} className="mr-1.5" />
+            )}
             Add Item
           </Button>
         </div>
@@ -349,6 +396,7 @@ export default function PackTracker() {
                   type="button"
                   data-ocid={`pack.delete_button.${idx + 1}`}
                   onClick={() => handleDeleteItem(item.id)}
+                  disabled={deleteItemMutation.isPending}
                   className="text-muted-foreground hover:text-destructive transition-colors ml-1"
                 >
                   <Trash2 size={14} />
@@ -417,8 +465,12 @@ export default function PackTracker() {
             <Button
               data-ocid="pack.arrival_submit.button"
               onClick={handleAddArrival}
+              disabled={addArrivalMutation.isPending}
               className="w-full"
             >
+              {addArrivalMutation.isPending ? (
+                <Loader2 size={14} className="mr-1.5 animate-spin" />
+              ) : null}
               Aaya Darj Karo
             </Button>
           </div>
@@ -504,6 +556,7 @@ export default function PackTracker() {
                         type="button"
                         data-ocid={`pack.arrival.delete_button.${idx + 1}`}
                         onClick={() => handleDeleteArrival(a.id)}
+                        disabled={deleteArrivalMutation.isPending}
                         className="text-muted-foreground hover:text-destructive transition-colors"
                       >
                         <Trash2 size={14} />
@@ -590,8 +643,12 @@ export default function PackTracker() {
             <Button
               data-ocid="pack.dist_submit.button"
               onClick={handleAddDistribution}
+              disabled={addDistMutation.isPending}
               className="w-full"
             >
+              {addDistMutation.isPending ? (
+                <Loader2 size={14} className="mr-1.5 animate-spin" />
+              ) : null}
               Diya Darj Karo
             </Button>
           </div>
@@ -692,6 +749,7 @@ export default function PackTracker() {
                         type="button"
                         data-ocid={`pack.dist.delete_button.${idx + 1}`}
                         onClick={() => handleDeleteDistribution(d.id)}
+                        disabled={deleteDistMutation.isPending}
                         className="text-muted-foreground hover:text-destructive transition-colors"
                       >
                         <Trash2 size={14} />

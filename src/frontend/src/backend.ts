@@ -93,6 +93,10 @@ export interface EquipmentItem {
     id: bigint;
     name: string;
 }
+export interface Category {
+    id: bigint;
+    name: string;
+}
 export interface HomeServiceSettlement {
     id: bigint;
     staffId: bigint;
@@ -112,13 +116,14 @@ export interface CashEntry {
     notes: string;
     amount: bigint;
 }
-export interface EquipmentCheckout {
+export interface PackDistribution {
     id: bigint;
     staffId: bigint;
     date: string;
-    takenAt: string;
-    equipmentId: bigint;
-    returnedAt: string;
+    time: string;
+    notes: string;
+    quantity: bigint;
+    packItemId: bigint;
 }
 export interface UsageRecord {
     id: bigint;
@@ -130,11 +135,27 @@ export interface UsageRecord {
     productId: bigint;
     quantity: bigint;
 }
+export interface PackArrival {
+    id: bigint;
+    date: string;
+    notes: string;
+    quantity: bigint;
+    packItemId: bigint;
+}
 export interface Staff {
     id: bigint;
     name: string;
     role: string;
+    pinned: boolean;
     mobile: string;
+}
+export interface EquipmentCheckout {
+    id: bigint;
+    staffId: bigint;
+    date: string;
+    takenAt: string;
+    equipmentId: bigint;
+    returnedAt: string;
 }
 export interface AttendanceEntry {
     id: bigint;
@@ -142,9 +163,10 @@ export interface AttendanceEntry {
     staffId: bigint;
     date: string;
 }
-export interface Category {
+export interface PackItem {
     id: bigint;
     name: string;
+    unit: string;
 }
 export interface Product {
     id: bigint;
@@ -152,25 +174,35 @@ export interface Product {
     lowStockThreshold: bigint;
     name: string;
     unit: string;
+    openingDate: string;
     brand: string;
     currentStock: bigint;
     rackNumber: string;
     openingStock: bigint;
 }
 export interface backendInterface {
-    addCashEntry(date: string, entryType: string, amount: bigint, description: string, recipientStaffId: bigint, notes: string): Promise<void>;
+    addCashEntry(date: string, entryType: string, amount: bigint, description: string, recipientStaffId: bigint, notes: string): Promise<CashEntry>;
     addCategory(name: string): Promise<Category>;
-    addEquipmentCheckout(staffId: bigint, equipmentId: bigint, date: string, takenAt: string): Promise<void>;
+    addEquipmentCheckout(staffId: bigint, equipmentId: bigint, date: string, takenAt: string): Promise<EquipmentCheckout>;
     addEquipmentItem(name: string): Promise<EquipmentItem>;
-    addHomeServiceSettlement(date: string, staffId: bigint, clientName: string, serviceAmount: bigint, clientPaid: bigint, travelExpense: bigint, notes: string): Promise<void>;
-    addProduct(name: string, categoryId: bigint, openingStock: bigint, unit: string, lowStockThreshold: bigint, rackNumber: string): Promise<Product>;
+    addHomeServiceSettlement(date: string, staffId: bigint, clientName: string, serviceAmount: bigint, clientPaid: bigint, travelExpense: bigint, notes: string): Promise<HomeServiceSettlement>;
+    addPackArrival(packItemId: bigint, date: string, quantity: bigint, notes: string): Promise<PackArrival>;
+    addPackDistribution(packItemId: bigint, date: string, time: string, staffId: bigint, quantity: bigint, notes: string): Promise<PackDistribution>;
+    addPackItem(name: string, unit: string): Promise<PackItem>;
+    addProduct(name: string, categoryId: bigint, openingStock: bigint, openingDate: string, unit: string, lowStockThreshold: bigint, rackNumber: string): Promise<Product>;
     addStaff(name: string, role: string, mobile: string): Promise<Staff>;
-    addUsageRecord(date: string, productId: bigint, categoryId: bigint, staffId: bigint, quantity: bigint, time: string, clientName: string): Promise<void>;
+    addUsageRecord(date: string, productId: bigint, categoryId: bigint, staffId: bigint, quantity: bigint, time: string, clientName: string): Promise<UsageRecord>;
+    bulkAddStaff(names: Array<string>, role: string): Promise<Array<Staff>>;
     clearAttendance(date: string, staffId: bigint): Promise<void>;
+    deleteAllProducts(): Promise<void>;
+    deleteAllStaff(): Promise<void>;
     deleteCashEntry(id: bigint): Promise<void>;
     deleteCategory(id: bigint): Promise<void>;
     deleteEquipmentItem(id: bigint): Promise<void>;
     deleteHomeServiceSettlement(id: bigint): Promise<void>;
+    deletePackArrival(id: bigint): Promise<void>;
+    deletePackDistribution(id: bigint): Promise<void>;
+    deletePackItem(id: bigint): Promise<void>;
     deleteProduct(id: bigint): Promise<void>;
     deleteStaff(id: bigint): Promise<void>;
     deleteUsageRecord(id: bigint): Promise<void>;
@@ -180,18 +212,22 @@ export interface backendInterface {
     getEquipmentCheckouts(): Promise<Array<EquipmentCheckout>>;
     getEquipmentItems(): Promise<Array<EquipmentItem>>;
     getHomeServiceSettlements(): Promise<Array<HomeServiceSettlement>>;
+    getPackArrivals(): Promise<Array<PackArrival>>;
+    getPackDistributions(): Promise<Array<PackDistribution>>;
+    getPackItems(): Promise<Array<PackItem>>;
     getProducts(): Promise<Array<Product>>;
     getStaff(): Promise<Array<Staff>>;
     getUsageRecords(): Promise<Array<UsageRecord>>;
     markAllPresent(date: string, staffIds: Array<bigint>): Promise<void>;
     returnEquipmentCheckout(id: bigint, returnedAt: string): Promise<void>;
-    setAttendance(date: string, staffId: bigint, status: string): Promise<void>;
+    setAttendance(date: string, staffId: bigint, status: string): Promise<AttendanceEntry>;
     updateProduct(id: bigint, name: string, categoryId: bigint, openingStock: bigint, openingDate: string, currentStock: bigint, unit: string, lowStockThreshold: bigint, rackNumber: string): Promise<void>;
     updateStaff(id: bigint, name: string, role: string, mobile: string): Promise<void>;
+    updateStaffPin(id: bigint, pinned: boolean): Promise<void>;
 }
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
-    async addCashEntry(arg0: string, arg1: string, arg2: bigint, arg3: string, arg4: bigint, arg5: string): Promise<void> {
+    async addCashEntry(arg0: string, arg1: string, arg2: bigint, arg3: string, arg4: bigint, arg5: string): Promise<CashEntry> {
         if (this.processError) {
             try {
                 const result = await this.actor.addCashEntry(arg0, arg1, arg2, arg3, arg4, arg5);
@@ -219,7 +255,7 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async addEquipmentCheckout(arg0: bigint, arg1: bigint, arg2: string, arg3: string): Promise<void> {
+    async addEquipmentCheckout(arg0: bigint, arg1: bigint, arg2: string, arg3: string): Promise<EquipmentCheckout> {
         if (this.processError) {
             try {
                 const result = await this.actor.addEquipmentCheckout(arg0, arg1, arg2, arg3);
@@ -247,7 +283,7 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async addHomeServiceSettlement(arg0: string, arg1: bigint, arg2: string, arg3: bigint, arg4: bigint, arg5: bigint, arg6: string): Promise<void> {
+    async addHomeServiceSettlement(arg0: string, arg1: bigint, arg2: string, arg3: bigint, arg4: bigint, arg5: bigint, arg6: string): Promise<HomeServiceSettlement> {
         if (this.processError) {
             try {
                 const result = await this.actor.addHomeServiceSettlement(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
@@ -261,17 +297,59 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async addProduct(arg0: string, arg1: bigint, arg2: bigint, arg3: string, arg4: bigint, arg5: string): Promise<Product> {
+    async addPackArrival(arg0: bigint, arg1: string, arg2: bigint, arg3: string): Promise<PackArrival> {
         if (this.processError) {
             try {
-                const result = await this.actor.addProduct(arg0, arg1, arg2, arg3, arg4, arg5);
+                const result = await this.actor.addPackArrival(arg0, arg1, arg2, arg3);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.addProduct(arg0, arg1, arg2, arg3, arg4, arg5);
+            const result = await this.actor.addPackArrival(arg0, arg1, arg2, arg3);
+            return result;
+        }
+    }
+    async addPackDistribution(arg0: bigint, arg1: string, arg2: string, arg3: bigint, arg4: bigint, arg5: string): Promise<PackDistribution> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addPackDistribution(arg0, arg1, arg2, arg3, arg4, arg5);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addPackDistribution(arg0, arg1, arg2, arg3, arg4, arg5);
+            return result;
+        }
+    }
+    async addPackItem(arg0: string, arg1: string): Promise<PackItem> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addPackItem(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addPackItem(arg0, arg1);
+            return result;
+        }
+    }
+    async addProduct(arg0: string, arg1: bigint, arg2: bigint, arg3: string, arg4: string, arg5: bigint, arg6: string): Promise<Product> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addProduct(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addProduct(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
             return result;
         }
     }
@@ -289,7 +367,7 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async addUsageRecord(arg0: string, arg1: bigint, arg2: bigint, arg3: bigint, arg4: bigint, arg5: string, arg6: string): Promise<void> {
+    async addUsageRecord(arg0: string, arg1: bigint, arg2: bigint, arg3: bigint, arg4: bigint, arg5: string, arg6: string): Promise<UsageRecord> {
         if (this.processError) {
             try {
                 const result = await this.actor.addUsageRecord(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
@@ -300,6 +378,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.addUsageRecord(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+            return result;
+        }
+    }
+    async bulkAddStaff(arg0: Array<string>, arg1: string): Promise<Array<Staff>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.bulkAddStaff(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.bulkAddStaff(arg0, arg1);
             return result;
         }
     }
@@ -314,6 +406,34 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.clearAttendance(arg0, arg1);
+            return result;
+        }
+    }
+    async deleteAllProducts(): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteAllProducts();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteAllProducts();
+            return result;
+        }
+    }
+    async deleteAllStaff(): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteAllStaff();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteAllStaff();
             return result;
         }
     }
@@ -370,6 +490,48 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.deleteHomeServiceSettlement(arg0);
+            return result;
+        }
+    }
+    async deletePackArrival(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deletePackArrival(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deletePackArrival(arg0);
+            return result;
+        }
+    }
+    async deletePackDistribution(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deletePackDistribution(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deletePackDistribution(arg0);
+            return result;
+        }
+    }
+    async deletePackItem(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deletePackItem(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deletePackItem(arg0);
             return result;
         }
     }
@@ -499,6 +661,48 @@ export class Backend implements backendInterface {
             return result;
         }
     }
+    async getPackArrivals(): Promise<Array<PackArrival>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getPackArrivals();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getPackArrivals();
+            return result;
+        }
+    }
+    async getPackDistributions(): Promise<Array<PackDistribution>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getPackDistributions();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getPackDistributions();
+            return result;
+        }
+    }
+    async getPackItems(): Promise<Array<PackItem>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getPackItems();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getPackItems();
+            return result;
+        }
+    }
     async getProducts(): Promise<Array<Product>> {
         if (this.processError) {
             try {
@@ -569,7 +773,7 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async setAttendance(arg0: string, arg1: bigint, arg2: string): Promise<void> {
+    async setAttendance(arg0: string, arg1: bigint, arg2: string): Promise<AttendanceEntry> {
         if (this.processError) {
             try {
                 const result = await this.actor.setAttendance(arg0, arg1, arg2);
@@ -608,6 +812,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.updateStaff(arg0, arg1, arg2, arg3);
+            return result;
+        }
+    }
+    async updateStaffPin(arg0: bigint, arg1: boolean): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.updateStaffPin(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.updateStaffPin(arg0, arg1);
             return result;
         }
     }

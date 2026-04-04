@@ -1,4 +1,4 @@
-// Re-export all data functions from localStorage
+// Re-export all data functions from backendService (ICP backend)
 export {
   getCategories,
   addCategory,
@@ -8,10 +8,14 @@ export {
   addProduct,
   updateProduct,
   deleteProduct,
+  deleteAllProducts,
   getStaff,
   addStaff,
   updateStaff,
+  updateStaffPin,
+  bulkAddStaff,
   deleteStaff,
+  deleteAllStaff,
   getUsageRecords,
   addUsageRecord,
   deleteUsageRecord,
@@ -31,7 +35,6 @@ export {
   saveEquipmentCheckouts,
   addEquipmentCheckout,
   returnEquipmentCheckout,
-  getAttendanceRecord,
   getAttendanceForDate,
   setAttendanceStatus,
   clearAttendanceStatus,
@@ -60,4 +63,6 @@ export {
   savePackDistributions,
   addPackDistribution,
   deletePackDistribution,
-} from "./localStorage";
+  // Actor setter
+  setActor,
+} from "./backendService";

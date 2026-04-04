@@ -152,7 +152,7 @@ function copyBossLink() {
   navigator.clipboard
     .writeText(url)
     .then(() => {
-      toast.success("Link copy ho gaya! Boss ko bhej do 📋");
+      toast.success("Link copy ho gaya! Boss ya kisi bhi device pe bhej do 📋");
     })
     .catch(() => {
       toast.error(`Link copy nahi hua, manually copy karo: ${url}`);
@@ -221,7 +221,7 @@ export function AppLayout({
         {/* Live Clock */}
         <LiveClock />
 
-        {/* Boss Report link button */}
+        {/* Other Device / Boss report link button */}
         <div className="px-3 pb-2">
           <button
             type="button"
@@ -231,7 +231,7 @@ export function AppLayout({
             style={{ backgroundColor: "#ff1493", color: "white" }}
           >
             <Copy size={15} />
-            Boss ka Link 📋
+            Other Device 📋
           </button>
         </div>
 

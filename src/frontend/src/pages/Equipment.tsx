@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useActor } from "../hooks/useActor";
 import { useStaff } from "../hooks/useQueries";
 import {
   addEquipmentCheckout,
@@ -44,20 +45,24 @@ import {
 // ── Inline Query Hooks ────────────────────────────────────────────────────────
 
 function useEquipmentItems() {
+  const { actor, isFetching } = useActor();
   return useQuery({
     queryKey: ["equipment_items"],
     queryFn: () => getEquipmentItems(),
+    enabled: !!actor && !isFetching,
   });
 }
 
 function useEquipmentCheckouts() {
+  const { actor, isFetching } = useActor();
   return useQuery({
     queryKey: ["equipment_checkouts"],
     queryFn: () => getEquipmentCheckouts(),
+    enabled: !!actor && !isFetching,
   });
 }
 
-// ── CSV Export ────────────────────────────────────────────────────────────────
+// ── CSV Export ──────────────────────────────────────────────────────────────
 
 function exportCheckoutsToCSV(
   rows: {
@@ -100,7 +105,7 @@ function exportCheckoutsToCSV(
   URL.revokeObjectURL(url);
 }
 
-// ── Main Component ────────────────────────────────────────────────────────────
+// ── Main Component ─────────────────────────────────────────────────────────────
 
 export function Equipment() {
   const queryClient = useQueryClient();
@@ -160,9 +165,10 @@ export function Equipment() {
     }: {
       staffId: number;
       equipmentId: number;
-    }) => Promise.resolve(addEquipmentCheckout(staffId, equipmentId)),
+    }) => addEquipmentCheckout(staffId, equipmentId),
     onSuccess: (record) => {
       queryClient.invalidateQueries({ queryKey: ["equipment_checkouts"] });
+      queryClient.invalidateQueries({ queryKey: ["attendance"] });
       toast.success(`Checked out at ${record.takenAt}`);
       setSelectedStaffId("");
       setSelectedEquipmentId("");
@@ -171,7 +177,7 @@ export function Equipment() {
   });
 
   const addItemMutation = useMutation({
-    mutationFn: async (name: string) => Promise.resolve(addEquipmentItem(name)),
+    mutationFn: async (name: string) => addEquipmentItem(name),
     onSuccess: (item) => {
       queryClient.invalidateQueries({ queryKey: ["equipment_items"] });
       toast.success(`"${item.name}" added`);
@@ -182,7 +188,7 @@ export function Equipment() {
 
   const deleteItemMutation = useMutation({
     mutationFn: async (id: number) => {
-      deleteEquipmentItem(id);
+      await deleteEquipmentItem(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["equipment_items"] });
@@ -193,7 +199,7 @@ export function Equipment() {
 
   const returnMutation = useMutation({
     mutationFn: async (id: number) => {
-      returnEquipmentCheckout(id);
+      await returnEquipmentCheckout(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["equipment_checkouts"] });

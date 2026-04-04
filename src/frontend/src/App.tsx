@@ -1,6 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { useEffect, useState } from "react";
 import { AppLayout } from "./components/AppLayout";
+import { useActorInjector } from "./hooks/useQueries";
 import { Attendance } from "./pages/Attendance";
 import { BossReport } from "./pages/BossReport";
 import { CashLedger } from "./pages/CashLedger";
@@ -47,7 +48,10 @@ function getHashRoute(): Route {
   return valid.includes(hash as Route) ? (hash as Route) : "/";
 }
 
-export default function App() {
+function AppInner() {
+  // Inject actor into backendService so direct dataService calls work
+  useActorInjector();
+
   const [route, setRoute] = useState<Route>(getHashRoute);
 
   useEffect(() => {
@@ -107,4 +111,8 @@ export default function App() {
       </AppLayout>
     </>
   );
+}
+
+export default function App() {
+  return <AppInner />;
 }

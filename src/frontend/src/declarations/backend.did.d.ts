@@ -45,12 +45,30 @@ export interface HomeServiceSettlement {
   'notes' : string,
   'travelExpense' : bigint,
 }
+export interface PackArrival {
+  'id' : bigint,
+  'date' : string,
+  'notes' : string,
+  'quantity' : bigint,
+  'packItemId' : bigint,
+}
+export interface PackDistribution {
+  'id' : bigint,
+  'staffId' : bigint,
+  'date' : string,
+  'time' : string,
+  'notes' : string,
+  'quantity' : bigint,
+  'packItemId' : bigint,
+}
+export interface PackItem { 'id' : bigint, 'name' : string, 'unit' : string }
 export interface Product {
   'id' : bigint,
   'categoryId' : bigint,
   'lowStockThreshold' : bigint,
   'name' : string,
   'unit' : string,
+  'openingDate' : string,
   'brand' : string,
   'currentStock' : bigint,
   'rackNumber' : string,
@@ -60,6 +78,7 @@ export interface Staff {
   'id' : bigint,
   'name' : string,
   'role' : string,
+  'pinned' : boolean,
   'mobile' : string,
 }
 export interface UsageRecord {
@@ -75,32 +94,44 @@ export interface UsageRecord {
 export interface _SERVICE {
   'addCashEntry' : ActorMethod<
     [string, string, bigint, string, bigint, string],
-    undefined
+    CashEntry
   >,
   'addCategory' : ActorMethod<[string], Category>,
   'addEquipmentCheckout' : ActorMethod<
     [bigint, bigint, string, string],
-    undefined
+    EquipmentCheckout
   >,
   'addEquipmentItem' : ActorMethod<[string], EquipmentItem>,
   'addHomeServiceSettlement' : ActorMethod<
     [string, bigint, string, bigint, bigint, bigint, string],
-    undefined
+    HomeServiceSettlement
   >,
+  'addPackArrival' : ActorMethod<[bigint, string, bigint, string], PackArrival>,
+  'addPackDistribution' : ActorMethod<
+    [bigint, string, string, bigint, bigint, string],
+    PackDistribution
+  >,
+  'addPackItem' : ActorMethod<[string, string], PackItem>,
   'addProduct' : ActorMethod<
-    [string, bigint, bigint, string, bigint, string],
+    [string, bigint, bigint, string, string, bigint, string],
     Product
   >,
   'addStaff' : ActorMethod<[string, string, string], Staff>,
   'addUsageRecord' : ActorMethod<
     [string, bigint, bigint, bigint, bigint, string, string],
-    undefined
+    UsageRecord
   >,
+  'bulkAddStaff' : ActorMethod<[Array<string>, string], Array<Staff>>,
   'clearAttendance' : ActorMethod<[string, bigint], undefined>,
+  'deleteAllProducts' : ActorMethod<[], undefined>,
+  'deleteAllStaff' : ActorMethod<[], undefined>,
   'deleteCashEntry' : ActorMethod<[bigint], undefined>,
   'deleteCategory' : ActorMethod<[bigint], undefined>,
   'deleteEquipmentItem' : ActorMethod<[bigint], undefined>,
   'deleteHomeServiceSettlement' : ActorMethod<[bigint], undefined>,
+  'deletePackArrival' : ActorMethod<[bigint], undefined>,
+  'deletePackDistribution' : ActorMethod<[bigint], undefined>,
+  'deletePackItem' : ActorMethod<[bigint], undefined>,
   'deleteProduct' : ActorMethod<[bigint], undefined>,
   'deleteStaff' : ActorMethod<[bigint], undefined>,
   'deleteUsageRecord' : ActorMethod<[bigint], undefined>,
@@ -110,17 +141,21 @@ export interface _SERVICE {
   'getEquipmentCheckouts' : ActorMethod<[], Array<EquipmentCheckout>>,
   'getEquipmentItems' : ActorMethod<[], Array<EquipmentItem>>,
   'getHomeServiceSettlements' : ActorMethod<[], Array<HomeServiceSettlement>>,
+  'getPackArrivals' : ActorMethod<[], Array<PackArrival>>,
+  'getPackDistributions' : ActorMethod<[], Array<PackDistribution>>,
+  'getPackItems' : ActorMethod<[], Array<PackItem>>,
   'getProducts' : ActorMethod<[], Array<Product>>,
   'getStaff' : ActorMethod<[], Array<Staff>>,
   'getUsageRecords' : ActorMethod<[], Array<UsageRecord>>,
   'markAllPresent' : ActorMethod<[string, Array<bigint>], undefined>,
   'returnEquipmentCheckout' : ActorMethod<[bigint, string], undefined>,
-  'setAttendance' : ActorMethod<[string, bigint, string], undefined>,
+  'setAttendance' : ActorMethod<[string, bigint, string], AttendanceEntry>,
   'updateProduct' : ActorMethod<
     [bigint, string, bigint, bigint, string, bigint, string, bigint, string],
     undefined
   >,
   'updateStaff' : ActorMethod<[bigint, string, string, string], undefined>,
+  'updateStaffPin' : ActorMethod<[bigint, boolean], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

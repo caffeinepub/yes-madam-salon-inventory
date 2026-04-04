@@ -21,6 +21,7 @@ export interface Staff {
   name: string;
   role: string;
   mobile?: string;
+  pinned?: boolean;
 }
 
 export interface UsageRecord {
@@ -87,7 +88,7 @@ export interface ProductEdit {
 export type ProductEdits = Record<number, ProductEdit>;
 export type StockOverrides = Record<number, number>;
 
-// ── Pack Tracker ──────────────────────────────────────────────────────────────────────────────
+// ── Pack Tracker ──────────────────────────────────────────────────────────────────────────────────
 
 export interface PackItem {
   id: number;

@@ -1,32 +1,38 @@
 # Yes Madam Salon Inventory
 
 ## Current State
-Full-stack salon management app with Staff, Products, Usage Entry, and other modules. Staff has a 'Sab Staff Hatao' (clear all) button. Products does not. Each staff and product has a numeric `id` (bigint) but no human-readable short code is displayed or searchable.
+
+Full-stack salon app with Motoko backend and React frontend. However, the frontend is using **localStorage** for all data storage instead of the Motoko backend. This means:
+- Data only exists on the device/browser where it was entered
+- Boss report link shows no data on other devices
+- The backend canister exists but is not being used by the frontend
+
+The backend has APIs for: Categories, Products, Staff, UsageRecords, Equipment, Attendance, CashLedger, HomeServiceSettlements. It is missing: Pack Tracker functions, deleteAllStaff, deleteAllProducts, updateStaffPin, bulkAddStaff, Staff.pinned field, Product.openingDate field.
 
 ## Requested Changes (Diff)
 
 ### Add
-- 'Sab Products Hatao' button in Products page -- same pattern as 'Sab Staff Hatao' in Staff page (loop through all, delete one by one, confirm dialog)
-- Short codes for all staff: format `S` + id padded to 3 digits (e.g., S001, S002). Display the code in the staff table as a column.
-- Short codes for all products: format `P` + id padded to 3 digits (e.g., P001, P002). Display in products table as a column.
-- In Usage Entry and Dashboard quick-entry: the product and staff search/select dropdowns should also match by code. User types 'S003' and the matching staff name appears. User types 'P012' and the matching product appears.
-- When adding a new staff/product, once saved, show/display their generated code so user knows it.
+- All missing backend APIs: Pack Tracker (addPackItem, deletePackItem, getPackItems, addPackArrival, getPackArrivals, addPackDistribution, getPackDistributions, deletePackDistribution), deleteAllStaff, deleteAllProducts, updateStaffPin, bulkAddStaff
+- Staff.pinned field in backend
+- Product.openingDate field in backend
+- New `backendService.ts` that wraps the ICP actor calls
+- Loading states in BossReport page
 
 ### Modify
-- Products.tsx: add 'Sab Products Hatao' button near the Add Product button area.
-- Staff.tsx: show code column (S001 etc.) in the table.
-- Products.tsx: show code column (P001 etc.) in the table.
-- UsageEntry.tsx: update searchable dropdowns for both staff and products to also match against the generated code.
-- Dashboard.tsx: update quick-entry dropdowns similarly if they have staff/product search.
+- `dataService.ts` to call backend APIs instead of localStorage for Categories, Products, Staff, UsageRecords, Equipment (checkout/items), Attendance, CashLedger, HomeServiceSettlements, PackTracker
+- `useQueries.ts` hooks to work with async backend calls
+- `AppLayout.tsx`: Change button label from "Boss ka Link" to "Other Device Link"
+- `BossReport.tsx`: Add proper loading/error states
 
 ### Remove
-- Nothing removed.
+- localStorage dependency for all core data (Categories, Products, Staff, UsageRecords, Equipment, Attendance, Cash, Pack Tracker)
 
 ## Implementation Plan
-1. Products.tsx: Add 'Sab Products Hatao' button -- confirm dialog, loop delete all products.
-2. Create a utility function `staffCode(id: bigint)` → `S` + Number(id).toString().padStart(3,'0') and `productCode(id: bigint)` → `P` + Number(id).toString().padStart(3,'0')`.
-3. Staff.tsx: Add 'Code' column in the table showing the staff code. Make it visible and easy to read.
-4. Products.tsx: Add 'Code' column in the table showing the product code.
-5. UsageEntry.tsx: In product and staff dropdowns/search, filter by both name and code so typing the code matches the entry.
-6. Dashboard.tsx: Same code-based filtering for any staff/product selects.
-7. After adding a staff/product, toast message should show the generated code (e.g., 'Priya Sharma added -- Code: S007').
+
+1. Regenerate Motoko backend with all missing features (openingDate, pinned, pack tracker, deleteAll, bulkAddStaff, updateStaffPin)
+2. Create `src/frontend/src/lib/backendService.ts` -- thin wrapper over ICP actor
+3. Update `dataService.ts` to re-export from backendService instead of localStorage
+4. Update `useQueries.ts` -- all queries become async, mutations call backend
+5. Fix AppLayout button label
+6. Fix BossReport loading state
+7. Validate and deploy
